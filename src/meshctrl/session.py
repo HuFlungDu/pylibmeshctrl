@@ -18,7 +18,30 @@ def _check_socket(f):
     return wrapper
 
 class Session(object):
-    def __init__(self, url, user=None, domain=None, password=None, loginkey=None, proxy=None, token=None, ignoreSSL=False, auto_reconnect=False):
+
+    '''
+    Class for MeshCentral control session
+
+    Args:
+        url (str): URL of meshcentral server to connect to. Should start with either "ws://" or "wss://".
+        user (str): Username of to use for connecting. Can also be username generated from token.
+        domain (str): Domain to connect to
+        password (str): Password with which to connect. Can also be password generated from token.
+        loginkey (str|bytes): Key from already handled login. Overrides username/password.
+        proxy (str): "url:port" to use for proxy server
+        token (str): Login token. This appears to be superfluous
+        ignore_ssl (bool): Ignore SSL errors
+
+    Returns:
+        :py:class:`Session`: Session connected to url
+
+    Attributes:
+        url (str): url to which the session is connected
+        initialized (asyncio.Event): Event marking if the Session initialization has finished. Wait on this to wait for a connection.
+        alive (bool): Whether the session connection is currently alive
+    '''
+
+    def __init__(self, url, user=None, domain=None, password=None, loginkey=None, proxy=None, token=None, ignore_ssl=False, auto_reconnect=False):
         if len(url) < 5 or ((not url.startswith('wss://')) and (not url.startsWith('ws://'))):
             raise ValueError("Invalid URL")
 
@@ -51,7 +74,7 @@ class Session(object):
                 domainid = domain
             if (user != None):
                 username = user
-            url += '?auth=' + util.encode_cookie({ userid: 'user/' + domainid + '/' + username, domainid: domainid }, ckey)
+            url += '?auth=' + util._encode_cookie({ userid: 'user/' + domainid + '/' + username, domainid: domainid }, ckey)
 
         if token:
             token = b',' + base64.b64encode(token.encode())
@@ -187,7 +210,7 @@ class Session(object):
     @_check_socket
     async def _send_command(self, data, name, timeout=None):
         id = f"meshctrl_{name}_{self._get_command_id()}"
-        # This fixes a very theoretical bug with hash colisions in the case of an infinite number of requests. Now the bug will only happen if there are currently 2**32-1 of the same type of request going out at the same time
+        # This fixes a very theoretical bug with hash colisions in the case of an infinite int of requests. Now the bug will only happen if there are currently 2**32-1 of the same type of request going out at the same time
         while id in self._inflight:
             id = f"meshctrl_{name}_{self._get_command_id()}"
 
@@ -221,653 +244,933 @@ class Session(object):
             raise response
         return response
 
-
-    '''*
-     * Get device groups. Only returns meshes to which the logged in user has access
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]>} List of meshes
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
     async def list_device_groups(self, timeout=None):
+        '''
+        Get device groups. Only returns meshes to which the logged in user has access
+
+        Args:
+            timeout (int): Duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of meshes
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error from server
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         data = await self._send_command({"action": "meshes"}, "list_device_groups", timeout)
         return data["meshes"]
 
-    '''* 
-     * Send an invite email for a group or mesh
-     * @param {string} group - Name of mesh to which to invite email
-     * @param {string} email - Email of user to invite
-     * @param {Object} [options={}]
-     * @param {string} [options.name=None] - User's name. For display purposes.
-     * @param {string} [options.message=None] - Message to send to user in invite email
-     * @param {string} [options.meshid=None] - ID of mesh which to invite user. Overrides "group"
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def send_invite_email(group, email, name=None, message=None, meshid=None, timeout=None):
+
+    async def send_invite_email(self, group, email, name=None, message=None, meshid=None, timeout=None):
+        '''
+        Send an invite email for a group or mesh
+
+        Args:
+            group (str): Name of mesh to which to invite email
+            email (str): Email of user to invite
+            name (str): User's name. For display purposes.
+            message (str): Message to send to user in invite email
+            meshid (str): ID of mesh which to invite user. Overrides "group"
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, False otherwise
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Generate an invite link for a group or mesh
-     * @param {string} group - Name of group to add
-     * @param {number} hours - Hours until link expires
-     * @param {Object} [options={}]
-     * @param {constants.MeshRights} [options.flags=None] - Bitwise flags for constants.MeshRights
-     * @param {string} [options.meshid=None] - ID of mesh which to invite user. Overrides "group"
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object>} Invite link information
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def generate_invite_link(group, hours, flags=None, meshid=None, timeout=None):
+    async def generate_invite_link(self, group, hours, flags=None, meshid=None, timeout=None):
+        '''
+        Generate an invite link for a group or mesh
+
+        Args:
+            group (str): Name of group to add
+            hours (int): Hours until link expires
+            flags (~meshctrl.constants.MeshRights): Bitwise flags for constants.MeshRights
+            meshid (str): ID of mesh which to invite user. Overrides "group"
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Invite link information
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''*
-     * List users on server. Admin Only.
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]>} List of users
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_users(timeout=None):
+    async def list_users(self, timeout=None):
+        '''
+        List users on server. Admin Only.
+
+        Args:
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of users
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''*
-     * Get list of connected users. Admin Only.
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]>} List of user sessions
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_user_sessions(timeout=None):
+    async def list_user_sessions(self, timeout=None):
+        '''
+        Get list of connected users. Admin Only.
+
+        Args:
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict] List of user sessions
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''*
-     * Get user groups. Admin will get all user groups, otherwise get limited user groups
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]|None>} List of groups, or None if no groups are found
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_user_groups(timeout=None):
+    async def list_user_groups(self, timeout=None):
+        '''
+        Get user groups. Admin will get all user groups, otherwise get limited user groups
+
+        Args:
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of groups
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''*
-     * Get devices to which the user has access.
-     * @param {Object} [options={}]
-     * @param {boolean} [options.details=False] - Get device details
-     * @param {string} [options.group=None] - Get devices from specific group by name. Overrides meshid
-     * @param {string} [options.meshid=None] - Get devices from specific group by id
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]>} List of nodes
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_devices(details=False, group=None, meshid=None, timeout=None):
+    
+    async def list_devices(self, details=False, group=None, meshid=None, timeout=None):
+        '''
+        Get devices to which the user has access.
+
+        Args:
+            details (bool): Get device details
+            group (str): Get devices from specific group by name. Overrides meshid
+            meshid (str): Get devices from specific group by id
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of nodes
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''*
-     * @callback Session~CloseCallback
-     * @param {SocketError} err - Error explaining the closure to the best of our ability
-     '''
+    
 
-    '''*
-     * Listen for the socket to close
-     * @param {Session~CloseCallback} f - Function to call when the socket closes
-     '''
+    def on_close(self, f):
+        '''
+        Listen for the socket to close
 
-    def on_close(f):
+        Args:
+            f (function(data: dict)): Function to call when the socket closes
+         '''
         raise NotImplementedError()
 
-    '''*
-     * @callback Session~EventCallback
-     * @param {Object} data - Raw event data from the server
-     '''
+    def listen_to_events(self, f, filter=None):
+        '''
+        Listen to events from the server
 
-    '''*
-     * Listen to events from the server
-     * @param {Session~EventCallback} f - Function to call when an event occurs
-     * @param {Object} [filter=None] - Object to filter events with. Only trigger for events that deep-match this object. Use sets for "array.contains" and arrays for equality of lists.
-     * @return {function} - Function used for listening. Use this to stop listening to events if you want that.
-     '''
-    def listen_to_events(f, filter=None):
+        Args:
+            f (function(data: dict)): Function to call when an event occurs
+            filter (dict): dict to filter events with. Only trigger for events that deep-match this dict. Use sets for "array.contains" and arrays for equality of lists.
+
+        Returns:
+            function: - Function used for listening. Use this to stop listening to events if you want that.
+         '''
+        raise NotImplementedError()
+    
+    def stop_listening_to_events(self, f):
+        '''
+        Stop listening to server events
+
+        Args:
+            @param {function} Callback to stop listening with.
+        '''
         raise NotImplementedError()
 
-    '''*
-     * Stop listening to server events
-     * @param {function} Callback to stop listening with.
-     '''
-    def stop_listening_to_events(f):
+    async def list_events(self, userid=None, nodeid=None, limit=None, timeout=None):
+        '''
+        List events visible to the currect user
+
+        Args:
+            userid (str): Filter by user. Overrides nodeid.
+            nodeid (str): Filter by node
+            limit (int): Limit to the N most recent events
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of events
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * List events visible to the currect user
-     * @param {Object} [options={}]
-     * @param {string} [options.userid=None] - Filter by user. Overrides nodeid.
-     * @param {string} [options.nodeid=None] - Filter by node
-     * @param {number} [options.limit=None] - Limit to the N most recent events
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object[]>} List of events
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_events(userid=None, nodeid=None, limit=None, timeout=None):
+    async def list_login_tokens(self, timeout=None):
+        '''
+        List login tokens for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of tokens
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * List login tokens for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object[]>} List of tokens
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_login_tokens(timeout=None):
+    async def add_login_token(self, name, expire=None, timeout=None):
+        '''
+        Create login token for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            name (str): Name of token
+            expire (int): Minutes until expiration. 0 or None for no expiration.
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Created token
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Create login token for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} name - Name of token
-     * @param {number} [expire=None] - Minutes until expiration. 0 or None for no expiration.
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object>} Created token
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_login_token(name, expire=None, timeout=None):
+    async def remove_login_token(self, names, timeout=None):
+        '''
+        Remove login token for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            name (str): Name of token or token username
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: List of remaining tokens
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove login token for current user. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} name - Name of token or token username
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object[]>} List of remaining tokens
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_login_token(names, timeout=None):
+    async def add_user(self, name, password, randompass=False, domain=None, email=None, emailverified=False, resetpass=False, realname=None, phone=None, rights=None, timeout=None):
+        '''
+        Add a new user
+
+        Args:
+            name (str): username
+            password (str): user's starting password
+            randompass (bool): Generate a random password for the user. Overrides password
+            domain (str): Domain to which to add the user
+            email (str): User's email address
+            emailverified (bool): Pre-verify the user's email address
+            resetpass (bool): Force the user to reset their password on first login
+            realname (str): User's real name
+            phone (str): User's phone int
+            rights (~meshctrl.constants.UserRights): Bitwise mask of user's rights on the server
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Add a new user
-     * @param {string} name - username
-     * @param {string} password - user's starting password
-     * @param {Object} [options={}]
-     * @param {boolean} [options.randompass=False] - Generate a random password for the user. Overrides password
-     * @param {string} [options.domain=None] - Domain to which to add the user
-     * @param {string} [options.email=None] - User's email address
-     * @param {boolean} [options.emailverified=False] - Pre-verify the user's email address
-     * @param {boolean} [options.resetpass=False] - Force the user to reset their password on first login
-     * @param {string} [options.realname=None] - User's real name
-     * @param {string} [options.phone=None] - User's phone number
-     * @param {constants.UserRights} [options.rights=None] - Bitwise mask of user's rights on the server
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_user(name, password, randompass=False, domain=None, email=None, emailverified=False, resetpass=False, realname=None, phone=None, rights=None, timeout=None):
+    async def edit_user(self, userid, domain=None, email=None, emailverified=False, resetpass=False, realname=None, phone=None, rights=None, timeout=None):
+        '''
+        Edit an existing user
+
+        Args:
+            userid (str): Unique userid
+            domain (str): Domain to which to add the user
+            email (str): User's email address
+            emailverified (bool): Verify or unverify the user's email address
+            resetpass (bool): Force the user to reset their password on next login
+            realname (str): User's real name
+            phone (str): User's phone int
+            rights (~meshctrl.constants.UserRights): Bitwise mask of user's rights on the server
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Edit an existing user
-     * @param {string} userid - Unique userid
-     * @param {Object} [options={}]
-     * @param {string} [options.domain=None] - Domain to which to add the user
-     * @param {string} [options.email=None] - User's email address
-     * @param {boolean} [options.emailverified=False] - Verify or unverify the user's email address
-     * @param {boolean} [options.resetpass=False] - Force the user to reset their password on next login
-     * @param {string} [options.realname=None] - User's real name
-     * @param {string} [options.phone=None] - User's phone number
-     * @param {constants.UserRights} [options.rights=None] - Bitwise mask of user's rights on the server
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def edit_user(userid, domain=None, email=None, emailverified=False, resetpass=False, realname=None, phone=None, rights=None, timeout=None):
+    async def remove_user(self, userid, timeout=None):
+        '''
+        Remove an existing user
+
+        Args:
+            userid (str): Unique userid
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove an existing user
-     * @param {string} userid - Unique userid
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_user(userid, timeout=None):
+    async def add_user_group(self, name, description=None, timeout=None):
+        '''
+        Create a new user group
+
+        Args:
+            name (str): Name of usergroup
+            description (str): Description of user group
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: New user group
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Create a new user group
-     * @param {string} name - Name of usergroup
-     * @param {string} [description=None] - Description of user group
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object>} New user group
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_user_group(name, description=None, timeout=None):
+    async def remove_user_group(self, groupid, timeout=None):
+        '''
+        Remove an existing user group
+
+        Args:
+            userid (str): Unique userid
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove an existing user group
-     * @param {string} userid - Unique userid
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_user_group(groupid, timeout=None):
+    async def add_users_to_user_group(self, userids, groupid, timeout=None):
+        '''
+        Add user(s) to an existing user group. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            ids (str|list[str]): Unique user id(s)
+            groupid (str): Group to add the given user to
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[str]: List of users that were successfully added
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Add user(s) to an existing user group. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string|array} ids - Unique user id(s)
-     * @param {string} groupid - Group to add the given user to
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<string[]>} List of users that were successfully added
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_users_to_user_group(userids, groupid, timeout=None):
+    async def remove_user_from_user_group(self, userid, groupid, timeout=None):
+        '''
+        Remove user from an existing user group
+
+        Args:
+            id (str): Unique user id
+            groupid (str): Group to remove the given user from
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove user from an existing user group
-     * @param {string} id - Unique user id
-     * @param {string} groupid - Group to remove the given user from
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_user_from_user_group(userid, groupid, timeout=None):
+    async def add_users_to_device(self, userids, nodeid, rights=None, timeout=None):
+        '''
+        Add a user to an existing node
+
+        Args:
+            userids (str|list[str]): Unique user id(s)
+            nodeid (str): Node to add the given user to
+            rights (~meshctrl.constants.MeshRights): Bitwise mask for the rights on the given mesh
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Add a user to an existing node
-     * @param {string|array} userids - Unique user id(s)
-     * @param {string} nodeid - Node to add the given user to
-     * @param {constants.MeshRights} [rights=None] - Bitwise mask for the rights on the given mesh
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_users_to_device(userids, nodeid, rights=None, timeout=None):
+    async def remove_users_from_device(self, nodeid, userids, timeout=None):
+        '''
+        Remove users from an existing node
+
+        Args:
+            nodeid (str): Node to remove the given users from
+            userids (str|list[str]): Unique user id(s)
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove users from an existing node
-     * @param {string} nodeid - Node to remove the given users from
-     * @param {string|array} userids - Unique user id(s)
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_users_from_device(nodeid, userids, timeout=None):
+    async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
+        '''
+        Create a new device group
+
+        Args:
+            name (str): Name of device group
+            description (str): Description of device group
+            amtonly (bool): 
+            features (~meshctrl.constants.MeshFeatures): Bitwise features to enable on the group
+            consent (~meshctrl.constants.ConsentFlags): Bitwise consent flags to use for the group
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: New device group
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Create a new device group
-     * @param {string} name - Name of device group
-     * @param {Object} [options={}]
-     * @param {string} [options.description=""] - Description of device group
-     * @param {boolean} [options.amtonly=False] - 
-     * @param {constants.MeshFeatures} [options.features=0] - Bitwise features to enable on the group
-     * @param {constants.ConsentFlags} [options.consent=0] - Bitwise consent flags to use for the group
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object>} New device group
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_device_group(name, description="", amtonly=False, features=0, consent=0, timeout=None):
+    async def remove_device_group(self, meshid, isname=False, timeout=None):
+        '''
+        Remove an existing device group
+
+        Args:
+            meshid (str): Unique id of device group
+            isname (bool): treat "meshid" as a name instead of an id
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove an existing device group
-     * @param {string} meshid - Unique id of device group
-     * @param {boolean} [isname=False] - treat "meshid" as a name instead of an id
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_device_group(meshid, isname=False, timeout=None):
+    async def edit_device_group(self, meshid, isname=False, name=None, description=None, flags=None, consent=None, invite_codes=None, backgroundonly=False, interactiveonly=False, timeout=None):
+        '''
+        Edit an existing device group
+
+        Args:
+            meshid (str): Unique id of device group
+            isname (bool): treat "meshid" as a name instead of an id
+            name (str): New name for group
+            description (str): New description
+            flags (~meshctrl.constants.MeshFeatures): Features to enable on the group
+            consent (~meshctrl.constants.ConsentFlags): Which consent flags to use for the group
+            invite_codes (list[str]): Create new invite codes
+            backgroundonly (bool): Flag for invite codes
+            interactiveonly (bool): Flag for invite codes
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Edit an existing device group
-     * @param {string} meshid - Unique id of device group
-     * @param {Object} [options={}]
-     * @param {boolean} [options.isname=False] - treat "meshid" as a name instead of an id
-     * @param {string} [options.name=None] - New name for group
-     * @param {boolean} [options.description=None] - New description
-     * @param {constants.MeshFeatures} [options.flags=None] - Features to enable on the group
-     * @param {constants.ConsentFlags} [options.consent=None] - Which consent flags to use for the group
-     * @param {string[]} [options.invite_codes=None] - Create new invite codes
-     * @param {boolean} [options.backgroundonly=False] - Flag for invite codes
-     * @param {boolean} [options.interactiveonly=False] - Flag for invite codes
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def edit_device_group(meshid, isname=False, name=None, description=None, flags=None, consent=None, invite_codes=None, backgroundonly=False, interactiveonly=False, timeout=None):
+    async def move_to_device_group(self, nodeids, meshid, isname=False, timeout=None):
+        '''
+        Move a device from one group to another
+
+        Args:
+            nodeids (str|list[str]): Unique node id(s)
+            meshid (str): Unique mesh id
+            isname (bool): treat "meshid" as a name instead of an id
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True on success, otherwise False
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Move a device from one group to another
-     * @param {string|array} nodeids - Unique node id(s)
-     * @param {string} meshid - Unique mesh id
-     * @param {boolean} [isname=False] - treat "meshid" as a name instead of an id
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Boolean>} true on success
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def move_to_device_group(nodeids, meshid, isname=False, timeout=None):
+    async def add_users_to_device_group(self, userids, meshid, isname=False, rights=0, timeout=None):
+        '''
+        Add a user to an existing mesh
+
+        Args:
+            userids (str|list[str]): Unique user id(s)
+            meshid (str): Mesh to add the given user to
+            isname (bool): Read meshid as a name rather than an id
+            rights (~meshctrl.constants.MeshRights): Bitwise mask for the rights on the given mesh
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Object showing which were added correctly and which were not, along with their result messages
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Add a user to an existing mesh
-     * @param {string|array} userids - Unique user id(s)
-     * @param {string} meshid - Mesh to add the given user to
-     * @param {Object} [options={}]
-     * @param {boolean} [options.isname=False] - Read meshid as a name rather than an id
-     * @param {constants.MeshRights} [options.rights=0] - Bitwise mask for the rights on the given mesh
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<object>} Object showing which were added correctly and which were not, along with their result messages
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_users_to_device_group(userids, meshid, isname=False, rights=0, timeout=None):
+    async def remove_users_from_device_group(self, userids, meshid, isname=False, timeout=None):
+        '''
+        Remove users from an existing mesh
+
+        Args:
+            userids (str|list[str]): Unique user id(s)
+            meshid (str): Mesh to add the given user to
+            isname (bool): Read meshid as a name rather than an id
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Object showing which were removed correctly and which were not
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* 
-     * Remove users from an existing mesh
-     * @param {string|array} userids - Unique user id(s)
-     * @param {string} meshid - Mesh to add the given user to
-     * @param {boolean} [isname=False] - Read meshid as a name rather than an id
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<Object>} Object showing which were removed correctly and which were not
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_users_from_device_group(userids, meshid, isname=False, timeout=None):
+    async def broadcast(self, message, userid=None, timeout=None):
+        '''
+        Broadcast a message to all users or a single user
+
+        Args:
+            message (str): Message to broadcast
+            userid (str): Optional user to which to send the message
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''*
-     * Broadcast a message to all users or a single user
-     * @param {string} message - Message to broadcast
-     * @param {string} [userid=None] - Optional user to which to send the message
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @return {Promise<boolean>} True if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def broadcast(message, userid=None, timeout=None):
+    async def device_info(self, nodeid, timeout=None):
+        '''
+        Get all info for a given device. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            nodeid (str): Unique id of desired node
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Object containing all meaningful device info
+
+        Raises:    
+            ValueError: `Invalid device id` if device is not found
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* Get all info for a given device. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} nodeid - Unique id of desired node
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise} Object containing all meaningful device info
-     * @throws {ValueError} `Invalid device id` if device is not found
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def device_info(nodeid, timeout=None):
+    async def edit_device(self, nodeid, name=None, description=None, tags=None, icon=None, consent=None, timeout=None):
+        '''
+        Edit properties of an existing device
+
+        Args:
+            nodeid (str): Unique id of desired node
+            name (str): New name for device
+            description (str): New description for device
+            tags (str|list[str]]): New tags for device
+            icon (~meshctrl.constants.Icon): New icon for device
+            consent (~meshctrl.constants.ConsentFlags): New consent flags for device
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
+    async def run_command(self, nodeids, command, powershell=False, runasuser=False, runasuseronly=False, timeout=None):
+        '''
+        Run a command on any int of nodes. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
 
-    '''* Edit properties of an existing device
-     * @param {string} nodeid - Unique id of desired node
-     * @param {Object} [options={}]
-     * @param {string} [options.name=None] - New name for device
-     * @param {string} [options.description=None] - New description for device
-     * @param {string|string[]} [options.tags=None] - New tags for device
-     * @param {constants.Icon} [options.icon=None] - New icon for device
-     * @param {constants.ConsentFlags} [options.consent=None] - New consent flags for device
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} True if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def edit_device(nodeid, name=None, description=None, tags=None, icon=None, consent=None, timeout=None):
+        Args:
+            nodeids (str|list[str]): Unique ids of nodes on which to run the command
+            command (str): Command to run
+            powershell (bool): Use powershell to run command. Only available on Windows.
+            runasuser (bool): Attempt to run as a user instead of the root permissions given to the agent. Fall back to root if we cannot.
+            runasuseronly (bool): Error if we cannot run the command as the logged in user.
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Object containing mapped output of the commands by device
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* Run a command on any number of nodes. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string|string[]} nodeids - Unique ids of nodes on which to run the command
-     * @param {string} command - Command to run
-     * @param {Object} [options={}]
-     * @param {boolean} [options.powershell=False] - Use powershell to run command. Only available on Windows.
-     * @param {boolean} [options.runasuser=False] - Attempt to run as a user instead of the root permissions given to the agent. Fall back to root if we cannot.
-     * @param {boolean} [options.runasuseronly=False] - Error if we cannot run the command as the logged in user.
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object>} Object containing mapped output of the commands by device
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def run_command(nodeids, command, powershell=False, runasuser=False, runasuseronly=False, timeout=None):
+    async def shell(self, nodeid, unique=False):
+        '''
+        Get a terminal shell on the given device
+
+        Args:
+            nodeid (str): Unique id of node on which to open the shell
+            unique (bool): True: Create a unique :py:class:`~meshctrl.shell.Shell`. Caller is responsible for cleanup. False: Use a cached :py:class:`~meshctrl.shell.Shell` if available, otherwise create and cache.
+
+        Returns:
+            :py:class:`~meshctrl.shell.Shell`: Newly created and initialized :py:class:`~meshctrl.shell.Shell` or cached :py:class:`~meshctrl.shell.Shell` if unique is False and a shell is currently active
+         '''
         raise NotImplementedError()
 
-    '''* Get a terminal shell on the given device
-     * @param {string} nodeid - Unique id of node on which to open the shell
-     * @param {boolean} [unique=False] - true: Create a unique {@link _Shell}. Caller is responsible for cleanup. False: Use a cached {@link _Shell} if available, otherwise create and cache.
-     * @returns {Promise<_Shell>} Newly created and initialized {@link _Shell} or cached {@link _Shell} if unique is False and a shell is currently active
-     '''
-    async def shell(nodeid, unique=False):
+    async def smart_shell(self, nodeid, regex, unique=False):
+        '''
+        Get a smart terminal shell on the given device
+
+        Args:
+            nodeid (str): Unique id of node on which to open the shell
+            regex (regex): Regex to watch for to signify that the shell is ready for new input.
+            unique (bool): true: Create a unique :py:class:`~meshctrl.shell.SmartShell`. Caller is responsible for cleanup. False: Use a cached :py:class:`~meshctrl.shell.SmartShell` if available, otherwise create and cache.
+        Returns:
+            :py:class:`~meshctrl.shell.SmartShell`: Newly created and initialized :py:class:`~meshctrl.shell.SmartShell` or cached :py:class:`~meshctrl.shell.SmartShell` if unique is False and a smartshell with regex is currently active
+         '''
         raise NotImplementedError()
 
-    '''* Get a smart terminal shell on the given device
-     * @param {string} nodeid - Unique id of node on which to open the shell
-     * @param {regex} regex - Regex to watch for to signify that the shell is ready for new input.
-     * @param {boolean} [unique=False] - true: Create a unique {@link _SmartShell}. Caller is responsible for cleanup. False: Use a cached {@link _SmartShell} if available, otherwise create and cache.
-     * @returns {Promise<_SmartShell>} Newly created and initialized {@link _SmartShell} or cached {@link _SmartShell} if unique is False and a smartshell with regex is currently active
-     '''
-    async def smart_shell(nodeid, regex, unique=False):
+    async def wake_devices(self, nodeids, timeout=None):
+        '''
+        Wake up given devices
+
+        Args:
+            nodeids (str|list[str]): Unique ids of nodes which to wake
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* Wake up given devices
-     * @param {string|string[]} nodeids - Unique ids of nodes which to wake
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} True if successful
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def wake_devices(nodeids, timeout=None):
+    async def reset_devices(self, nodeids, timeout=None):
+        '''
+        Reset given devices
+
+        Args:
+            nodeids (str|list[str]): Unique ids of nodes which to reset
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* Reset given devices
-     * @param {string|string[]} nodeids - Unique ids of nodes which to reset
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} True if successful
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def reset_devices(nodeids, timeout=None):
+    async def sleep_devices(self, nodeids, timeout=None):
+        '''
+        Sleep given devices
+
+        Args:
+            nodeids (str|list[str]): Unique ids of nodes which to sleep
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* Sleep given devices
-     * @param {string|string[]} nodeids - Unique ids of nodes which to sleep
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} True if successful
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def sleep_devices(nodeids, timeout=None):
+    async def power_off_devices(self, nodeids, timeout=None):
+        ''' Power off given devices
+
+        Args:
+            nodeids (str|list[str]): Unique ids of nodes which to power off
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: True if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* Power off given devices
-     * @param {string|string[]} nodeids - Unique ids of nodes which to power off
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} True if successful
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def power_off_devices(nodeids, timeout=None):
+    async def list_device_shares(self, nodeid, timeout=None):
+        '''
+        List device shares of given node. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            nodeid (str): Unique id of nodes of which to list shares
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            list[dict]: Array of dicts representing device shares
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* List device shares of given node. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} nodeid - Unique id of nodes of which to list shares
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object[]>} Array of objects representing device shares
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def list_device_shares(nodeid, timeout=None):
+    async def add_device_share(self, nodeid, name, type=constants.SharingType.desktop, consent=None, start=None, end=None, duration=60*60, timeout=None):
+        '''
+        Add device share to given node. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            nodeid (str): Unique id of nodes of which to list shares
+            name (str): Name of guest with which to share
+            type (~meshctrl.constants.SharingType): Type of share thise should be
+            consent (~meshctrl.constants.ConsentFlags): Consent flags for share. Defaults to "notify" for your given constants.SharingType
+            start (int|datetime.datetime): When to start the share
+            end (int|datetime.datetime): When to end the share. If None, use duration instead
+            duration (int): Duration in seconds for share to exist
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            dict: Info about the newly created share
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* Add device share to given node. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} nodeid - Unique id of nodes of which to list shares
-     * @param {string} name - Name of guest with which to share
-     * @param {Object} [options={}]
-     * @param {constants.SharingType} [options.type=constants.SharingType.desktop] - Type of share thise should be
-     * @param {constants.ConsentFlags} [options.consent=None] - Consent flags for share. Defaults to "notify" for your given constants.SharingType
-     * @param {number|Date} [options.start=new Date()] - When to start the share
-     * @param {number|Date} [options.end=None] - When to end the share. If None, use duration instead
-     * @param {number} [options.duration=60*60] - Duration in seconds for share to exist
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<Object>} Info about the newly created share
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def add_device_share(nodeid, name, type=constants.SharingType.desktop, consent=None, start=None, end=None, duration=60*60, timeout=None):
+    async def remove_device_share(self, nodeid, shareid, timeout=None):
+        '''
+        Remove a device share
+
+        Args:
+            nodeid (str): Unique node from which to remove the share
+            shareid (str): Unique share id to be removed
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: true if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+        '''
         raise NotImplementedError()
 
-    '''* Remove a device share
-     * @param {string} nodeid - Unique node from which to remove the share
-     * @param {string} shareid - Unique share id to be removed
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} true if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def remove_device_share(nodeid, shareid, timeout=None):
+    async def device_open_url(self, nodeid, url, timeout=None):
+        '''
+        Open url in browser on device. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
+
+        Args:
+            nodeid (str): Unique node from which to remove the share
+            url (str): url to open
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: true if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            Exception: `Failed to open url` if failure occurs
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* Open url in browser on device. WARNING: Non namespaced call. Calling this function again before it returns may cause unintended consequences.
-     * @param {string} nodeid - Unique node from which to remove the share
-     * @param {string} url - url to open
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} true if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {Error} `Failed to open url` if failure occurs
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def device_open_url(nodeid, url, timeout=None):
+    async def device_message(self, nodeid, message, title="MeshCentral", timeout=None):
+        '''
+        Display a message on remote device.
+
+        Args:
+            nodeid (str): Unique node from which to remove the share
+            message (str): message to display
+            title (str): message title
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+           bool: true if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
         raise NotImplementedError()
 
-    '''* Display a message on remote device.
-     * @param {string} nodeid - Unique node from which to remove the share
-     * @param {string} message - message to display
-     * @param {string} [title="MeshCentral"] - message title
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} true if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     '''
-    async def device_message(nodeid, message, title="MeshCentral", timeout=None):
+    async def device_toast(self, nodeids, message, title="MeshCentral", timeout=None):
+        '''
+        Popup a toast a message on remote device.
+
+        Args:
+            nodeids (str|list[str]): Unique node from which to remove the share
+            message (str): message to display
+            title (str): message title
+            timeout (int): duration in milliseconds to wait for a response before throwing an error
+
+        Returns:
+            bool: true if successful
+
+        Raises:    
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+            @todo This function returns true even if it fails, because the server tells us it succeeds before it actually knows, then later tells us it failed, but it's hard to find that because it looks exactly like a success.
+         '''
         raise NotImplementedError()
 
-    '''* Popup a toast a message on remote device.
-     * @param {string|string[]} nodeids - Unique node from which to remove the share
-     * @param {string} message - message to display
-     * @param {string} [title="MeshCentral"] - message title
-     * @param {number?} [timeout=None] - duration in milliseconds to wait for a response before throwing an error
-     * @returns {Promise<boolean>} true if successful
-     * @throws {ServerError} Error text from server if there is a failure
-     * @throws {SocketError} Info about socket closure
-     * @throws {TimeoutError} Command timed out
-     * @todo This function returns true even if it fails, because the server tells us it succeeds before it actually knows, then later tells us it failed, but it's hard to find that because it looks exactly like a success.
-     '''
-    async def device_toast(nodeids, message, title="MeshCentral", timeout=None):
+    def interuser(self, data, session=None, user=None):
+        '''
+        Fire off an interuser message. This is a fire and forget api, we have no way of checking if the user got the message.
+
+        Args:
+            data (serializable): Any sort of serializable data you want to send to the user
+            session (str): Direct session to send to. Use this after you have made connection with a specific user session.
+            user (str): Send message to all sessions of a particular user. One of these must be set.
+
+        Raises:    
+            ValueError: Value error if neither user nor session are given.
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+         '''
         raise NotImplementedError()
 
-    '''* Fire off an interuser message. This is a fire and forget api, we have no way of checking if the user got the message.
-     * @param {serializable} data - Any sort of serializable data you want to send to the user
-     * @param {Object} [options={}]
-     * @param {string} [options.session=None] - Direct session to send to. Use this after you have made connection with a specific user session.
-     * @param {string} [options.user=None] - Send message to all sessions of a particular user. One of these must be set.
-     * @throws {ValueError} Value error if neither user nor session are given.
-     * @throws {SocketError} Info about socket closure
-     '''
-    def interuser(data, session=None, user=None):
+    async def upload(self, nodeid, source, target, unique_file_tunnel=False):
+        '''
+        Upload a stream to a device. This creates an _File and destroys it every call. If you need to upload multiple files, use {@link Session#file_explorer} instead.
+
+        Args:
+            nodeid (str): Unique id to upload stream to
+            source (ReadableStream): ReadableStream from which to read data
+            target (str): Path which to upload stream to on remote device
+            unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+
+        Returns:
+            Promise<Object>: {result: bool whether upload succeeded, size: number of bytes uploaded}
+        '''
         raise NotImplementedError()
 
-    '''* Upload a stream to a device. This creates an _File and destroys it every call. If you need to upload multiple files, use {@link Session#file_explorer} instead.
-     * @param {string} nodeid - Unique id to upload stream to
-     * @param {ReadableStream} source - ReadableStream from which to read data
-     * @param {string} target - Path which to upload stream to on remote device
-     * @param {boolean} [unique_file_tunnel=False] - true: Create a unique {@link _Files} for this call, which will be cleaned up on return, else use cached or cache {@link _Files}
-     * @returns {Promise<Object>} - {result: bool whether upload succeeded, size: number of bytes uploaded}
-     '''
-    async def upload(nodeid, source, target, unique_file_tunnel=False):
+    async def upload_file(self, nodeid, filepath, target, unique_file_tunnel=False):
+        '''
+        Friendly wrapper around :py:class:`~meshctrl.session.Session.upload` to upload from a filepath. Creates a ReadableStream and calls upload.
+
+        Args:
+            nodeid (str): Unique id to upload file to
+            filepath (str): Path from which to read the data
+            target (str): Path which to upload file to on remote device
+            unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+
+        Returns:
+            dict: {result: bool whether upload succeeded, size: number of bytes uploaded}
+         '''
         raise NotImplementedError()
 
-    '''* Friendly wrapper around {@link Session#upload} to upload from a filepath. Creates a ReadableStream and calls upload.
-     * @param {string} nodeid - Unique id to upload file to
-     * @param {string} filepath - Path from which to read the data
-     * @param {string} target - Path which to upload file to on remote device
-     * @param {boolean} [unique_file_tunnel=False] - true: Create a unique {@link _Files} for this call, which will be cleaned up on return, else use cached or cache {@link _Files}
-     * @returns {Promise<Object>} - {result: bool whether upload succeeded, size: number of bytes uploaded}
-     '''
-    async def upload_file(nodeid, filepath, target, unique_file_tunnel=False):
+    async def download(self, nodeid, source, target=None, unique_file_tunnel=False):
+        '''
+        Download a file from a device into a writable stream. This creates an :py:class:`~meshctrl.files.Files` and destroys it every call. If you need to upload multiple files, use :py:class:`~meshctrl.session.Session.file_explorer` instead.
+
+        Args:
+            nodeid (str): Unique id to download file from
+            source (str): Path from which to download from device
+            target (WritableStream): Stream to which to write data. If None, create new PassThrough stream which is both readable and writable.
+            unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+
+        Returns:
+            WritableStream: The stream which has been downloaded into
+
+        Raises:    
+            Exception: String showing the intermediate outcome and how many bytes were downloaded
+         '''
         raise NotImplementedError()
 
-    '''* Download a file from a device into a writable stream. This creates an _File and destroys it every call. If you need to upload multiple files, use {@link Session#file_explorer} instead.
-     * @param {string} nodeid - Unique id to download file from
-     * @param {string} source - Path from which to download from device
-     * @param {WritableStream} [target=None] - Stream to which to write data. If None, create new PassThrough stream which is both readable and writable.
-     * @param {boolean} [unique_file_tunnel=False] - true: Create a unique {@link _Files} for this call, which will be cleaned up on return, else use cached or cache {@link _Files}
-     * @returns {Promise<WritableStream>} The stream which has been downloaded into
-     * @throws {Error} String showing the intermediate outcome and how many bytes were downloaded
-     '''
-    async def download(nodeid, source, target=None, unique_file_tunnel=False):
+    async def download_file(self, nodeid, source, filepath, unique_file_tunnel=False):
+        '''
+        Friendly wrapper around :py:class:`~meshctrl.session.Session.download` to download to a filepath. Creates a WritableStream and calls download.
+
+        Args:
+            nodeid (str): Unique id to download file from
+            source (str): Path from which to download from device
+            filepath (str): Path to which to download data
+            unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+
+        Returns:
+            WritableStream: The stream which has been downloaded into
+         '''
         raise NotImplementedError()
 
-    '''* Friendly wrapper around {@link Session#download} to download to a filepath. Creates a WritableStream and calls download.
-     * @param {string} nodeid - Unique id to download file from
-     * @param {string} source - Path from which to download from device
-     * @param {string} filepath - Path to which to download data
-     * @param {boolean} [unique_file_tunnel=False] - true: Create a unique {@link _Files} for this call, which will be cleaned up on return, else use cached or cache {@link _Files}
-     * @returns {Promise<WritableStream>} The stream which has been downloaded into
-     '''
-    async def download_file(nodeid, source, filepath, unique_file_tunnel=False):
-        raise NotImplementedError()
+    async def file_explorer(self, nodeid, unique=False):
+        '''
+        Create, initialize, and return an :py:class:`~meshctrl.files.Files` object for the given node
 
-    '''* Create, initialize, and return an _File object for the given node
-     * @param {string} nodeid - Unique id on which to open file explorer
-     * @param {boolean} [unique=False] - true: Create a unique {@link _Files}. Caller is responsible for cleanup. False: Use a cached {@link _Files} if available, otherwise create and cache.
-     * @returns {Promise<_Files>} A newly initialized file explorer.
-     '''
-    async def file_explorer(nodeid, unique=False):
+        Args:
+            nodeid (str): Unique id on which to open file explorer
+            unique (bool): True: Create a unique :py:class:`~meshctrl.files.Files`. Caller is responsible for cleanup. False: Use a cached :py:class:`~meshctrl.files.Files` if available, otherwise create and cache.
+
+        Returns:
+            :py:class:`~meshctrl.files.Files`: A newly initialized file explorer.
+         '''
         raise NotImplementedError()

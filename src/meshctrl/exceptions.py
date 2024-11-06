@@ -1,21 +1,17 @@
 class MeshCtrlError(Exception):
+    """
+    Base class for Meshctrl errors
+    """
     pass
 
-# /** Represents an error thrown from the server
-#  * @extends Error
-#  */
 class ServerError(MeshCtrlError):
+    """
+    Represents an error thrown from the server
+    """
     pass
-
-# /** Represents an error in the websocket
-#  * @extends Error
-#  */
 
 class SocketError(MeshCtrlError):
-    pass
-
-# /** Represents that a command timed out
-#  * @extends Error
-#  */
-class TimeoutError(MeshCtrlError):
+    """
+    Represents an error in the websocket
+    """
     pass
