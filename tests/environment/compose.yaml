@@ -1,0 +1,52 @@
+networks:
+  meshctrl:
+    driver: bridge
+
+services:
+  client:
+    restart: unless-stopped
+    container_name: meshctrl-client
+    image: client
+    build:
+      dockerfile: client.dockerfile
+    ports:
+      - 5000:5000
+    depends_on:
+      - meshcentral
+    environment:
+      TZ: US/LosAngeles
+    # volumes:
+    #   # mongodb data-directory - A must for data persistence
+    #   - ./meshcentral/mongodb_data:/data/db
+    networks:
+     - meshctrl
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+  meshcentral:
+    restart: always
+    container_name: meshctrl-meshcentral
+    # use the official meshcentral container
+    image: meshcentral
+    build:
+      dockerfile: meshcentral.dockerfile
+    ports:
+      # MeshCentral will moan and try everything not to use port 80, but you can also use it if you so desire, just change the config.json according to your needs
+      - 8086:443
+    environment:
+      TZ: US/LosAngeles
+    #volumes:
+      # config.json and other important files live here. A must for data persistence
+      #- ./meshcentral/data:/opt/meshcentral/meshcentral-data
+      # where file uploads for users live
+      #- ./meshcentral/user_files:/opt/meshcentral/meshcentral-files
+      # location for the meshcentral-backups - this should be mounted to an external storage
+      #- ./meshcentral/backup:/opt/meshcentral/meshcentral-backups
+      # location for site customization files
+      #- ./meshcentral/web:/opt/meshcentral/meshcentral-web
+    networks:
+      - meshctrl
+    healthcheck:
+      test: curl -k --fail https://localhost:443/ || exit 1
+      interval: 5s
+      timeout: 120s

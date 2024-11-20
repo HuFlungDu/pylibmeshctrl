@@ -2,17 +2,22 @@ import sys
 import os
 import asyncio
 thisdir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.realpath(f"{thisdir}/../src"))
+# sys.path.append(os.path.realpath(f"{thisdir}/../src"))
 import meshctrl
+import ssl
+import requests
 
-async def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    url = argv[0]
-    user = argv[1]
-    password = argv[2]
-    async with meshctrl.session.Session(url, user=user, password=password) as s:
-        print(await s.list_device_groups(10))
+async def test_sanity(env):
+    async with meshctrl.session.Session(env.mcurl, user="unprivileged", password=env.users["unprivileged"], ignore_ssl=True) as s:
+        print("\ninfo user_info: {}\n".format(await s.user_info()))
+        print("\ninfo server_info: {}\n".format(await s.server_info()))
+        pass
 
-if __name__ == "__main__":
-    asyncio.run(main())
+async def test_ssl(env):
+    try:
+        async with meshctrl.session.Session(env.mcurl, user="unprivileged", password=env.users["unprivileged"], ignore_ssl=False) as s:
+            pass
+    except* ssl.SSLCertVerificationError:
+        pass
+    else:
+        raise Exception("Invalid SSL certificate accepted")

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
+  "settings": {
+    "plugins":{"enabled": false},
+    "_mongoDb": null,
+    "cert": "host.docker.internal",
+    "_WANonly": true,
+    "_LANonly": true,
+    "port": 443,
+    "aliasPort": 8086,
+    "redirPort": 80,
+    "_redirAliasPort": 80,
+    "AgentPong": 300,
+    "TLSOffload": false,
+    "SelfUpdate": false,
+    "AllowFraming": false,
+    "WebRTC": false,
+    "interUserMessaging": true
+  },
+  "domains": {
+    "": {
+      "_title": "MyServer",
+      "_title2": "Servername",
+      "minify": true,
+      "NewAccounts": false,
+      "localSessionRecording": false,
+      "_userNameIsEmail": true,
+      "_certUrl": "my.reverse.proxy",
+      "allowedOrigin": true
+    }
+  },
+  "_letsencrypt": {
+    "__comment__": "Requires NodeJS 8.x or better, Go to https://letsdebug.net/ first before>",
+    "_email": "myemail@mydomain.com",
+    "_names": "myserver.mydomain.com",
+    "production": false
+  }
+}
