@@ -205,8 +205,8 @@ package:
 .. |the repository service| replace:: GitHub
 .. |contribute button| replace:: "Create pull request"
 
-.. _repository: https://github.com/HuFlungDu/meshctrl
-.. _issue tracker: https://github.com/HuFlungDu/meshctrl/issues
+.. _repository: https://github.com/HuFlungDu/pylibmeshctrl
+.. _issue tracker: https://github.com/HuFlungDu/pylibmeshctrl/issues
 .. <-- end -->
 
 
