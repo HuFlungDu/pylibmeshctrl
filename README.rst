@@ -61,7 +61,7 @@ simply use the `initialized <https://pylibmeshctrl.readthedocs.io/en/latest/api/
 
 .. code:: python
 
-   session = meshctrl.session.Session(url, **options)
+   session = meshctrl.Session(url, **options)
    await session.initialized.wait()
 
 Note that, in this case, you will be rquired to clean up tho session
