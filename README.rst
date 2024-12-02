@@ -44,8 +44,7 @@ Usage
 -----
 
 This module is implemented as a primarily asynchronous library
-(asyncio), mostly through the ``Session`` class, which is exported as
-default. Because the library is asynchronous, you must wait for it to be
+(asyncio), mostly through the `Session <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.html#meshctrl.session.Session>`__ class. Because the library is asynchronous, you must wait for it to be
 initialized before interacting with the server. The preferred way to do
 this is to use the async context manager pattern:
 
@@ -53,12 +52,12 @@ this is to use the async context manager pattern:
 
    import meshctrl
 
-   async with meshctrl.session.Session(url, **options):
+   async with meshctrl.Session(url, **options):
        print(await session.list_users())
        ...
 
 However, if you prefer to instantiate the object yourself, you can
-simply use the ``initialized`` property:
+simply use the `initialized <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.html#meshctrl.session.Session.initialized>`__ property:
 
 .. code:: python
 
@@ -66,7 +65,7 @@ simply use the ``initialized`` property:
    await session.initialized.wait()
 
 Note that, in this case, you will be rquired to clean up tho session
-using its ``close`` method.
+using its `close <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.html#meshctrl.session.Session.close>`__ method.
 
 Session Parameters
 ------------------

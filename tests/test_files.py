@@ -7,7 +7,7 @@ import io
 import random
 
 async def test_commands(env):
-    async with meshctrl.session.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True) as admin_session:
+    async with meshctrl.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True) as admin_session:
         mesh = await admin_session.add_device_group("test", description="This is a test group", amtonly=False, features=0, consent=0, timeout=10)
         try:
             with env.create_agent(mesh.short_meshid) as agent:
@@ -53,7 +53,7 @@ async def test_commands(env):
             assert (await admin_session.remove_device_group(mesh.meshid, timeout=10)), "Failed to remove device group"
 
 async def test_upload_download(env):
-    async with meshctrl.session.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True) as admin_session:
+    async with meshctrl.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True) as admin_session:
         mesh = await admin_session.add_device_group("test", description="This is a test group", amtonly=False, features=0, consent=0, timeout=10)
         try:
             with env.create_agent(mesh.short_meshid) as agent:
