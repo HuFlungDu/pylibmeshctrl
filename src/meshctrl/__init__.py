@@ -15,10 +15,13 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from . import session
+from .session import Session
 from . import constants
 from . import shell
 from . import tunnel
 from . import util
 from . import files
 from . import exceptions
+from . import device
+from . import mesh
+from . import user_group
