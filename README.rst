@@ -55,7 +55,7 @@ this is to use the async context manager pattern:
 
    async with meshctrl.session.Session(url, **options):
        print(await session.list_users())
-   ...
+       ...
 
 However, if you prefer to instantiate the object yourself, you can
 simply use the ``initialized`` property:
@@ -81,7 +81,7 @@ API
 ---
 
 API is documented in the `API
-Docs <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.htm>`__
+Docs <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.html>`__
 
 
 
