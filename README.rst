@@ -29,15 +29,60 @@
 
 |
 
-=============
 meshctrl
-=============
+========
 
+Library for remotely interacting with a
+`MeshCentral <https://meshcentral.com/>`__ server instance
 
-    Libmeshctrl implementation in python
+Installation
+------------
 
+pip install meshctrl
 
-This is a library for interacting with a Mesh Central instance programatically. Written in python.
+Usage
+-----
+
+This module is implemented as a primarily asynchronous library
+(asyncio), mostly through the ``Session`` class, which is exported as
+default. Because the library is asynchronous, you must wait for it to be
+initialized before interacting with the server. The preferred way to do
+this is to use the async context manager pattern:
+
+.. code:: python
+
+   import meshctrl
+
+   async with meshctrl.session.Session(url, **options):
+       print(await session.list_users())
+   ...
+
+However, if you prefer to instantiate the object yourself, you can
+simply use the ``initialized`` property:
+
+.. code:: python
+
+   session = meshctrl.session.Session(url, **options)
+   await session.initialized.wait()
+
+Note that, in this case, you will be rquired to clean up tho session
+using its ``close`` method.
+
+Session Parameters
+------------------
+
+``url``: URL of meshcentral server to connect to. Should start with
+either "ws://" or "wss://".
+
+``options``: optional parameters. Described at `Read the
+Docs <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.html#module-meshctrl.session>`__
+
+API
+---
+
+API is documented in the `API
+Docs <https://pylibmeshctrl.readthedocs.io/en/latest/api/meshctrl.htm>`__
+
 
 
 .. _pyscaffold-notes:
