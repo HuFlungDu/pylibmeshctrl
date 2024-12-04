@@ -31,6 +31,7 @@ class Session(object):
         proxy (str): "url:port" to use for proxy server NOTE: This is currently not implemented due to a limitation of the undersying websocket library. Upvote the issue if you find this important.
         token (str): Login token. This appears to be superfluous
         ignore_ssl (bool): Ignore SSL errors
+        auto_reconnect (bool): In case of server failure, attempt to auto reconnect. All outstanding requests will be killed.
 
     Returns:
         :py:class:`Session`: Session connected to url
@@ -92,6 +93,7 @@ class Session(object):
         self._inflight = set()
         self._file_tunnels = {}
         self._ignore_ssl = ignore_ssl
+        self.auto_reconnect = auto_reconnect
 
         self._eventer = util.Eventer()
 

@@ -396,11 +396,9 @@ async def test_session_files(env):
                 assert r["size"] == len(randdata), "Uploaded wrong number of bytes"
 
                 s = await admin_session.download(agent.nodeid, f"{pwd}/test", timeout=5)
-                s.seek(0)
                 assert s.read() == randdata, "Downloaded bad data"
 
                 await admin_session.download(agent.nodeid, f"{pwd}/test", downfilestream, timeout=5)
-                downfilestream.seek(0)
                 assert downfilestream.read() == randdata, "Downloaded bad data"
 
                 await admin_session.download_file(agent.nodeid, f"{pwd}/test2", os.path.join(thisdir, "data", "test"), timeout=5)
