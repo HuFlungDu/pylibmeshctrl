@@ -30,7 +30,7 @@ class Session(object):
         domain (str): Domain to connect to
         password (str): Password with which to connect. Can also be password generated from token.
         loginkey (str|bytes): Key from already handled login. Overrides username/password.
-        proxy (str): "url:port" to use for proxy server NOTE: This is currently not implemented due to a limitation of the undersying websocket library. Upvote the issue if you find this important.
+        proxy (str): "url:port" to use for proxy server
         token (str): Login token. This appears to be superfluous
         ignore_ssl (bool): Ignore SSL errors
         auto_reconnect (bool): In case of server failure, attempt to auto reconnect. All outstanding requests will be killed.
