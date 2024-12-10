@@ -46,8 +46,18 @@ class Session(object):
     '''
 
     def __init__(self, url, user=None, domain=None, password=None, loginkey=None, proxy=None, token=None, ignore_ssl=False, auto_reconnect=False):
-        if len(url) < 5 or ((not url.startswith('wss://')) and (not url.startswith('ws://'))):
+        parsed = urllib.parse.urlparse(url)
+
+        if parsed.scheme not in ("wss", "ws"):
             raise ValueError("Invalid URL")
+
+        port = 80
+        if parsed.port is None:
+            if parsed.scheme == "wss":
+                port = 443
+            p = list(parsed)
+            p[1] = f"{parsed.hostname}:{port}"
+            url = urllib.parse.urlunparse(p)
 
         if (not url.endswith('/')):
             url += '/'

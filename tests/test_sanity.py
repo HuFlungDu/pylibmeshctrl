@@ -37,3 +37,20 @@ async def test_ssl(env):
         pass
     else:
         raise Exception("Invalid SSL certificate accepted")
+
+async def test_urlparse():
+    # This tests the url port adding necessitated by python-socks. Our test environment doesn't use 443, so this is just a quick sanity test.
+    try:
+        async with meshctrl.Session("wss://localhost", user="unprivileged", password="Not a real password", ignore_ssl=True) as s:
+            pass
+    except* TimeoutError:
+        #We're not running a server, so timeout is our expected outcome
+        pass
+
+    # This tests our check for wss/ws url schemes
+    try:
+        async with meshctrl.Session("https://localhost", user="unprivileged", password="Not a real password", ignore_ssl=True) as s:
+            pass
+    except* ValueError:
+        #We're not running a server, so timeout is our expected outcome
+        pass
