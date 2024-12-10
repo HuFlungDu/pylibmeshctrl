@@ -19,9 +19,9 @@ services:
     #   # mongodb data-directory - A must for data persistence
     #   - ./meshcentral/mongodb_data:/data/db
     networks:
-     - meshctrl
+      - meshctrl
     extra_hosts:
-    - "host.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway"
 
   meshcentral:
     restart: always
@@ -50,3 +50,20 @@ services:
       test: curl -k --fail https://localhost:443/ || exit 1
       interval: 5s
       timeout: 120s
+
+  squid:
+    image: ubuntu/squid:latest
+    restart: unless-stopped
+    container_name: meshctrl-squid
+    ports:
+      - 3128:3128
+
+    networks:
+      - meshctrl
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ./config/squid/conf.d:/etc/squid/conf.d
+      - ./config/squid/squid.conf:/etc/squid/squid.conf

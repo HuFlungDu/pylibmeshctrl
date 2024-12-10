@@ -4,6 +4,8 @@ import websockets.asyncio
 import websockets.asyncio.client
 import asyncio
 import ssl
+from python_socks.async_.asyncio import Proxy
+import urllib
 from . import exceptions
 from . import util
 from . import constants
@@ -52,10 +54,6 @@ class Tunnel(object):
                 ssl_context.verify_mode = ssl.CERT_NONE
                 options = { "ssl": ssl_context }
 
-            # Setup the HTTP proxy if needed
-            # if (self._session._proxy != None):
-            #     options.agent = new https_proxy_agent(urllib.parse(this._proxy))
-
             if (self.node_id.split('/') != 3) and (self._session._currentDomain is not None):
                 self.node_id = f"node/{self._session._currentDomain}/{self.node_id}"
 
@@ -72,13 +70,11 @@ class Tunnel(object):
 
             self.url = self._session.url.replace('/control.ashx', '/meshrelay.ashx?browser=1&p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&auth=' + authcookie["cookie"])
 
-            # headers = websockets.datastructures.Headers()
+            if self._session._proxy:
+                proxy = Proxy.from_url(self._session._proxy)
+                parsed = urllib.parse.urlparse(self.url)
+                options["sock"] = await proxy.connect(dest_host=parsed.hostname, dest_port=parsed.port)
 
-            # if (self._password):
-            #     token = self._token if self._token else b""
-            #     headers['x-meshauth'] = (base64.b64encode(self._user.encode()) + b',' + base64.b64encode(self._password.encode()) + token).decode()
-
-            # options["additional_headers"] = headers
             async for websocket in websockets.asyncio.client.connect(self.url, process_exception=util._process_websocket_exception, **options):
                 self.alive = True
                 self._socket_open.set()

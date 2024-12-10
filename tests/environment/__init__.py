@@ -54,13 +54,16 @@ class TestEnvironment(object):
         self._subp = None
         self.mcurl = "wss://localhost:8086"
         self.clienturl = "http://localhost:5000"
-        self._dockerurl = "host.docker.internal:8086"
+        self.dockerurl = "host.docker.internal:8086"
+        self.proxyurl = "http://localhost:3128"
 
     def __enter__(self):
         global _docker_process
         if _docker_process is not None:
             self._subp = _docker_process
             return self
+        # Destroy the env in case it wasn't killed correctly last time.
+        subprocess.check_call(["docker", "compose", "down"], stdout=subprocess.DEVNULL, cwd=thisdir)
         self._subp = _docker_process = subprocess.Popen(["docker", "compose", "up", "--build", "--force-recreate", "--no-deps"], stdout=subprocess.DEVNULL, cwd=thisdir)
         timeout = 30
         start = time.time()
@@ -88,7 +91,7 @@ class TestEnvironment(object):
         pass
 
     def create_agent(self, meshid):
-        return Agent(meshid, self.mcurl, self.clienturl, self._dockerurl)
+        return Agent(meshid, self.mcurl, self.clienturl, self.dockerurl)
 
 def _kill_docker_process():
     if _docker_process is not None:

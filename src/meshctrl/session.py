@@ -8,6 +8,8 @@ import json
 import datetime
 import io
 import ssl
+import urllib
+from python_socks.async_.asyncio import Proxy
 from . import constants
 from . import exceptions
 from . import util
@@ -122,15 +124,16 @@ class Session(object):
                 ssl_context.verify_mode = ssl.CERT_NONE
                 options = { "ssl": ssl_context }
 
-            # Setup the HTTP proxy if needed
-            # if (self._proxy != None):
-            #     options.agent = new https_proxy_agent(urllib.parse(self._proxy))
-
             headers = websockets.datastructures.Headers()
 
             if (self._password):
                 token = self._token if self._token else b""
                 headers['x-meshauth'] = (base64.b64encode(self._user.encode()) + b',' + base64.b64encode(self._password.encode()) + token).decode()
+
+            if self._proxy:
+                proxy = Proxy.from_url(self._proxy)
+                parsed = urllib.parse.urlparse(self.url)
+                options["sock"] = await proxy.connect(dest_host=parsed.hostname, dest_port=parsed.port)
 
             options["additional_headers"] = headers
             async for websocket in websockets.asyncio.client.connect(self.url, process_exception=util._process_websocket_exception, **options):

@@ -25,6 +25,10 @@ async def test_sanity(env):
         print("\ninfo server_info: {}\n".format(await s.server_info()))
         pass
 
+async def test_proxy(env):
+    async with meshctrl.Session("wss://" + env.dockerurl, user="unprivileged", password=env.users["unprivileged"], ignore_ssl=True, proxy=env.proxyurl) as s:
+        pass
+
 async def test_ssl(env):
     try:
         async with meshctrl.Session(env.mcurl, user="unprivileged", password=env.users["unprivileged"], ignore_ssl=False) as s:
