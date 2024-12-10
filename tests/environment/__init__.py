@@ -65,7 +65,12 @@ class TestEnvironment(object):
         # Destroy the env in case it wasn't killed correctly last time.
         subprocess.check_call(["docker", "compose", "down"], stdout=subprocess.DEVNULL, cwd=thisdir)
         self._subp = _docker_process = subprocess.Popen(["docker", "compose", "up", "--build", "--force-recreate", "--no-deps"], stdout=subprocess.DEVNULL, cwd=thisdir)
-        timeout = 30
+        if not self._wait_for_meshcentral():
+            self.__exit__(None, None, None)
+            raise Exception("Failed to create docker instance")
+        return self
+
+    def _wait_for_meshcentral(self, timeout=30):
         start = time.time()
         while time.time() - start < timeout:
             try:
@@ -82,16 +87,23 @@ class TestEnvironment(object):
                 pass
             time.sleep(1)
         else:
-            self.__exit__(None, None, None)
-            raise Exception("Failed to create docker instance")
-        return self
-
+            return False
+        return True
 
     def __exit__(self, exc_t, exc_v, exc_tb):
         pass
 
     def create_agent(self, meshid):
         return Agent(meshid, self.mcurl, self.clienturl, self.dockerurl)
+
+    # Restart our docker instances, to test reconnect code.
+    def restart_mesh(self):
+        subprocess.check_call(["docker", "container", "restart", "meshctrl-meshcentral"], stdout=subprocess.DEVNULL, cwd=thisdir)
+        assert self._wait_for_meshcentral(), "Failed to restart docker instance"
+
+    def restart_proxy(self):
+        subprocess.check_call(["docker", "container", "restart", "meshctrl-squid"], stdout=subprocess.DEVNULL, cwd=thisdir)
+
 
 def _kill_docker_process():
     if _docker_process is not None:

@@ -140,13 +140,9 @@ class Session(object):
                 token = self._token if self._token else b""
                 headers['x-meshauth'] = (base64.b64encode(self._user.encode()) + b',' + base64.b64encode(self._password.encode()) + token).decode()
 
-            if self._proxy:
-                proxy = Proxy.from_url(self._proxy)
-                parsed = urllib.parse.urlparse(self.url)
-                options["sock"] = await proxy.connect(dest_host=parsed.hostname, dest_port=parsed.port)
 
             options["additional_headers"] = headers
-            async for websocket in websockets.asyncio.client.connect(self.url, process_exception=util._process_websocket_exception, **options):
+            async for websocket in util.proxy_connect(self.url, proxy_url=self._proxy, process_exception=util._process_websocket_exception, **options):
                 self.alive = True
                 self._socket_open.set()
                 try:
@@ -154,10 +150,10 @@ class Session(object):
                         tg.create_task(self._listen_data_task(websocket))
                         tg.create_task(self._send_data_task(websocket))
                 except* websockets.ConnectionClosed as e:
-
                     self._socket_open.clear()
                     if not self.auto_reconnect:
                         raise
+
         except* Exception as eg:
             self.alive = False
             self._socket_open.clear()

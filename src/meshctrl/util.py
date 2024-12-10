@@ -9,6 +9,9 @@ import re
 import websockets
 import ssl
 import functools
+import urllib
+import python_socks
+from python_socks.async_.asyncio import Proxy
 from . import exceptions
 
 def _encode_cookie(o, key):
@@ -139,20 +142,36 @@ def compare_dict(dict1, dict2):
 def _check_socket(f):
     @functools.wraps(f)
     async def wrapper(self, *args, **kwargs):
-        await asyncio.wait_for(self.initialized.wait(), 10)
-        if not self.alive and self._main_loop_error is not None:
-            raise self._main_loop_error
-        elif not self.alive:
-            raise exceptions.SocketError("Socket Closed")
-        return await f(self, *args, **kwargs)
+        try:
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(asyncio.wait_for(self.initialized.wait(), 10))
+                tg.create_task(asyncio.wait_for(self._socket_open.wait(), 10))
+        finally:
+            if not self.alive and self._main_loop_error is not None:
+                raise self._main_loop_error
+            elif not self.alive:
+                raise exceptions.SocketError("Socket Closed")
+            return await f(self, *args, **kwargs)
     return wrapper
 
 def _process_websocket_exception(exc):
     tmp = websockets.asyncio.client.process_exception(exc)
-    # SSLVerification error is a subclass of OSError, but doesn't make sense no retry, so we need to handle it separately.
+    # SSLVerification error is a subclass of OSError, but doesn't make sense to retry, so we need to handle it separately.
     if isinstance(exc, (ssl.SSLCertVerificationError, TimeoutError)):
         return exc
+    if isinstance(exc, python_socks._errors.ProxyError):
+        return None
     return tmp
 
-class Proxy(object):
-    pass
+class proxy_connect(websockets.asyncio.client.connect):
+    def __init__(self,*args, proxy_url=None, **kwargs):
+        self.proxy = None
+        if proxy_url is not None:
+            self.proxy = Proxy.from_url(proxy_url)
+        super().__init__(*args, **kwargs)
+
+    async def create_connection(self, *args, **kwargs):
+        if self.proxy is not None:
+            parsed = urllib.parse.urlparse(self.uri)
+            self.connection_kwargs["sock"] = await self.proxy.connect(dest_host=parsed.hostname, dest_port=parsed.port)
+        return await super().create_connection(*args, **kwargs)

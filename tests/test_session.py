@@ -31,6 +31,35 @@ async def test_admin(env):
         assert len(admin_users) == len(env.users.keys()), "Admin cannot see correct number of users"
         assert len(admin_sessions) == 2, "Admin cannot see correct number of oser sessions"
 
+async def test_auto_reconnect(env):
+    async with meshctrl.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True, auto_reconnect=True) as admin_session:
+        env.restart_mesh()
+        await asyncio.sleep(10)
+        await admin_session.ping(timeout=10)
+
+    # As above, but with proxy
+    async with meshctrl.Session("wss://" + env.dockerurl, user="admin", password=env.users["admin"], ignore_ssl=True, auto_reconnect=True, proxy=env.proxyurl) as admin_session:
+        env.restart_mesh()
+        for i in range(3):
+            try:
+                await admin_session.ping(timeout=10)
+            except:
+                continue
+            break
+        else:
+            raise Exception("Failed to reconnect")
+
+        env.restart_proxy()
+        for i in range(3):
+            try:
+                await admin_session.ping(timeout=10)
+            except* Exception as e:
+                pass
+            else:
+                break
+        else:
+            raise Exception("Failed to reconnect")
+
 
 async def test_users(env):
     try:
