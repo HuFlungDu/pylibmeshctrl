@@ -139,7 +139,7 @@ def compare_dict(dict1, dict2):
 def _check_socket(f):
     @functools.wraps(f)
     async def wrapper(self, *args, **kwargs):
-        await self.initialized.wait()
+        await asyncio.wait_for(self.initialized.wait(), 10)
         if not self.alive and self._main_loop_error is not None:
             raise self._main_loop_error
         elif not self.alive:
@@ -153,3 +153,6 @@ def _process_websocket_exception(exc):
     if isinstance(exc, (ssl.SSLCertVerificationError, TimeoutError)):
         return exc
     return tmp
+
+class Proxy(object):
+    pass
