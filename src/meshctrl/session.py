@@ -1337,6 +1337,14 @@ class Session(object):
         if sysinfo is not None and sysinfo.get("node", None):
             # Node information came with system information
             node = sysinfo.get("node", None)
+            for meshid, _nodes in nodes["nodes"].items():
+                for _mesh in meshes:
+                    if _mesh.meshid == meshid:
+                        break
+                else:
+                    break
+                if meshid == node["meshid"]:
+                    node["mesh"] = _mesh
         else:
             # This device does not have system information, get node information from the nodes list.
             for meshid, _nodes in nodes["nodes"].items():
