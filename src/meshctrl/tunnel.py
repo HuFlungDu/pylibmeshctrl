@@ -27,6 +27,11 @@ class Tunnel(object):
         self._message_queue = asyncio.Queue()
         self._send_task = None
         self._listen_task = None
+        self._ssl_context = None
+        if self._session._ignore_ssl:
+            self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            self._ssl_context.check_hostname = False
+            self._ssl_context.verify_mode = ssl.CERT_NONE
 
     async def close(self):
         self._main_loop_task.cancel()
@@ -45,22 +50,18 @@ class Tunnel(object):
 
     async def _main_loop(self):
         try:
-            authcookie = await self._session._send_command_no_response_id({ "action":"authcookie" })
+            self._authcookie = await self._session._send_command_no_response_id({ "action":"authcookie" })
 
             options = {}
-            if self._session._ignore_ssl:
-                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-                options = { "ssl": ssl_context }
+            if self._ssl_context is not None:
+                options = { "ssl": self._ssl_context }
 
-            if (self.node_id.split('/') != 3) and (self._session._currentDomain is not None):
-                self.node_id = f"node/{self._session._currentDomain}/{self.node_id}"
+            if (len(self.node_id.split('/')) != 3):
+                self.node_id = f"node/{self._session._currentDomain or ""}/{self.node_id}"
 
             self._tunnel_id = util._get_random_hex(6)
 
-            initialize_tunnel_response = await self._session._send_command({ "action": 'msg', "nodeid": self.node_id, "type": 'tunnel', "usage": 1, "value": '*/meshrelay.ashx?p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&rauth=' + authcookie["rcookie"] }, "initialize_tunnel")
-
+            initialize_tunnel_response = await self._session._send_command({ "action": 'msg', "nodeid": self.node_id, "type": 'tunnel', "usage": 1, "value": '*/meshrelay.ashx?p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&rauth=' + self._authcookie["rcookie"] }, "initialize_tunnel")
             if initialize_tunnel_response.get("result", None) != "OK":
                 self._main_loop_error = exceptions.ServerError(initialize_tunnel_response.get("result", "Failed to initialize remote tunnel"))
                 self._socket_open.clear()
@@ -68,7 +69,8 @@ class Tunnel(object):
                 self.initialized.set()
                 return
 
-            self.url = self._session.url.replace('/control.ashx', '/meshrelay.ashx?browser=1&p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&auth=' + authcookie["cookie"])
+            self.url = self._session.url.replace('/control.ashx', '/meshrelay.ashx?browser=1&p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&auth=' + self._authcookie["cookie"])
+
 
             async for websocket in util.proxy_connect(self.url, proxy_url=self._session._proxy, process_exception=util._process_websocket_exception, **options):
                 self.alive = True

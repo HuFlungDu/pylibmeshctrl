@@ -5,6 +5,7 @@ import meshctrl
 import requests
 import io
 import random
+import time
 
 async def test_commands(env):
     async with meshctrl.Session("wss://" + env.dockerurl, user="admin", password=env.users["admin"], ignore_ssl=True, proxy=env.proxyurl) as admin_session:
@@ -78,7 +79,7 @@ async def test_upload_download(env):
                 async with admin_session.file_explorer(agent.nodeid) as files:
                     r = await files.upload(upfilestream, f"{pwd}/test", timeout=5)
                     print("\ninfo files_upload: {}\n".format(r))
-                    assert r["result"] == "success", "Upload failed"
+                    assert r["result"] == True, "Upload failed"
                     assert r["size"] == len(randdata), "Uploaded wrong number of bytes"
                     for f in await files.ls(pwd, timeout=5):
                         if f["n"] == "test" and f["t"] == meshctrl.constants.FileType.FILE:
@@ -95,10 +96,23 @@ async def test_upload_download(env):
                     else:
                         raise Exception("Uploaded file not found")
 
-                    r = await files.download(f"{pwd}/test", downfilestream, timeout=5)
+                    start = time.perf_counter()
+                    r = await files.download(f"{pwd}/test", downfilestream, skip_ws_attempt=True, timeout=5)
                     print("\ninfo files_download: {}\n".format(r))
-                    assert r["result"] == "success", "Domnload failed"
+                    assert r["result"] == True, "Domnload failed"
                     assert r["size"] == len(randdata), "Downloaded wrong number of bytes"
+                    print(f"http download time: {time.perf_counter()-start}")
+
+                    downfilestream.seek(0)
+                    assert downfilestream.read() == randdata, "Got wrong data back"
+                    downfilestream.seek(0)
+
+                    start = time.perf_counter()
+                    r = await files.download(f"{pwd}/test", downfilestream, skip_http_attempt=True, timeout=5)
+                    print("\ninfo files_download: {}\n".format(r))
+                    assert r["result"] == True, "Domnload failed"
+                    assert r["size"] == len(randdata), "Downloaded wrong number of bytes"
+                    print(f"ws download time: {time.perf_counter()-start}")
 
                     downfilestream.seek(0)
                     assert downfilestream.read() == randdata, "Got wrong data back"

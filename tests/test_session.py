@@ -29,7 +29,7 @@ async def test_admin(env):
             assert len(no_sessions.keys()) == 0, "non-admin has admin acess"
 
         assert len(admin_users) == len(env.users.keys()), "Admin cannot see correct number of users"
-        assert len(admin_sessions) == 2, "Admin cannot see correct number of oser sessions"
+        assert len(admin_sessions) == 2, "Admin cannot see correct number of user sessions"
 
 async def test_auto_reconnect(env):
     async with meshctrl.Session(env.mcurl, user="admin", password=env.users["admin"], ignore_ssl=True, auto_reconnect=True) as admin_session:
@@ -39,6 +39,7 @@ async def test_auto_reconnect(env):
 
     # As above, but with proxy
     async with meshctrl.Session("wss://" + env.dockerurl, user="admin", password=env.users["admin"], ignore_ssl=True, auto_reconnect=True, proxy=env.proxyurl) as admin_session:
+
         env.restart_mesh()
         for i in range(3):
             try:
@@ -284,14 +285,14 @@ async def test_mesh_device(env):
             except:
                 raise Exception("Failed to run command on device after it was moved to a new mesh while having individual device permissions")
 
-        r = await admin_session.remove_users_from_device_group((await privileged_session.user_info())["_id"], mesh.meshid, timeout=10)
-        print("\ninfo remove_users_from_device_group: {}\n".format(r))
-        assert (await admin_session.remove_users_from_device(agent.nodeid, (await unprivileged_session.user_info())["_id"], timeout=10)), "Failed to remove user from device"
-
-        assert (r[(await privileged_session.user_info())["_id"]]["success"]), "Failed to remove user from devcie group"
+            r = await admin_session.remove_users_from_device_group((await privileged_session.user_info())["_id"], mesh.meshid, timeout=10)
+            print("\ninfo remove_users_from_device_group: {}\n".format(r))
+            assert (r[(await privileged_session.user_info())["_id"]]["success"]), "Failed to remove user from device group"
+            assert (await admin_session.remove_users_from_device(agent.nodeid, (await unprivileged_session.user_info())["_id"], timeout=10)), "Failed to remove user from device"
+            
 
         assert (await admin_session.remove_device_group(mesh.meshid, timeout=10)), "Failed to remove device group"
-        assert (await admin_session.remove_device_group(mesh2.name, isname=True, timeout=10)), "Failed to remove device group"
+        assert (await admin_session.remove_device_group(mesh2.name, isname=True, timeout=10)), "Failed to remove device group by name"
         assert not (await admin_session.add_users_to_device_group((await privileged_session.user_info())["_id"], mesh.meshid, rights=meshctrl.constants.MeshRights.fullrights, timeout=5))[(await privileged_session.user_info())["_id"]]["success"], "Added user to device group which doesn't exist?"
 
 async def test_user_groups(env):
@@ -416,12 +417,12 @@ async def test_session_files(env):
 
                 r = await admin_session.upload(agent.nodeid, upfilestream, f"{pwd}/test", timeout=5)
                 print("\ninfo files_upload: {}\n".format(r))
-                assert r["result"] == "success", "Upload failed"
+                assert r["result"] == True, "Upload failed"
                 assert r["size"] == len(randdata), "Uploaded wrong number of bytes"
 
                 r = await admin_session.upload_file(agent.nodeid, os.path.join(thisdir, "data", "test"), f"{pwd}/test2", timeout=5)
                 print("\ninfo files_upload: {}\n".format(r))
-                assert r["result"] == "success", "Upload failed"
+                assert r["result"] == True, "Upload failed"
                 assert r["size"] == len(randdata), "Uploaded wrong number of bytes"
 
                 s = await admin_session.download(agent.nodeid, f"{pwd}/test", timeout=5)
@@ -437,7 +438,7 @@ async def test_session_files(env):
 
                 r = await admin_session.upload_file(agent.nodeid, os.path.join(thisdir, "data", "test"), f"{pwd}/test2", unique_file_tunnel=True, timeout=5)
                 
-                assert r["result"] == "success", "Upload failed"
+                assert r["result"] == True, "Upload failed"
                 assert r["size"] == len(randdata), "Uploaded wrong number of bytes"
 
                 await admin_session.download_file(agent.nodeid, f"{pwd}/test2", os.path.join(thisdir, "data", "test"), unique_file_tunnel=True, timeout=5)

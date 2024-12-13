@@ -4,11 +4,14 @@ from . import exceptions
 from . import util
 import asyncio
 import json
+import urllib
+import shutil
 
 class Files(tunnel.Tunnel):
-    def __init__(self, session, nodeid):
-        super().__init__(session, nodeid, constants.Protocol.FILES)
+    def __init__(self, session, node):
+        super().__init__(session, node.nodeid, constants.Protocol.FILES)
         self.recorded = None
+        self._node = node
         self._request_id = 0
         self._request_queue = asyncio.Queue()
         self._download_finished = asyncio.Event()
@@ -16,6 +19,16 @@ class Files(tunnel.Tunnel):
         self._current_request = None
         self._handle_requests_task = asyncio.create_task(self._handle_requests())
         self._chunk_size = 65564
+        proxies = {}
+        if self._session._proxy is not None:
+            # We don't know which protocol the user is going to use, but we only need support one at a time, so just assume both
+            proxies = {
+                "http_proxy": self._session._proxy,
+                "https_proxy": self._session._proxy
+            }
+        self._proxy_handler = urllib.request.ProxyHandler(proxies=proxies)
+        self._http_opener = urllib.request.build_opener(self._proxy_handler, urllib.request.HTTPSHandler(context=self._ssl_context))
+
 
     def _get_request_id(self):
         self._request_id = (self._request_id+1)%(2**32-1)
@@ -68,6 +81,7 @@ class Files(tunnel.Tunnel):
 
         Args:
             directory (str): Path to the directory you wish to list
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Returns:
             list[~meshctrl.types.FilesLSItem]: The directory listing
@@ -75,6 +89,7 @@ class Files(tunnel.Tunnel):
         Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error from server
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
         """
         data = await self._send_command({"action": "ls", "path": directory}, "ls", timeout=timeout)
         return data["dir"]
@@ -101,10 +116,12 @@ class Files(tunnel.Tunnel):
 
         Args:
             directory (str): Path of directory to create
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error from server
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
 
         Returns:
             bool: True if directory was created
@@ -127,10 +144,12 @@ class Files(tunnel.Tunnel):
             path (str): Directory from which to delete files
             files (str|list[str]): File or files to remove from the directory
             recursive (bool): Whether to delete the files recursively
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error from server
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
 
         Returns:
             str: Info about the files removed. Something along the lines of Delete: "/path/to/file", or 'Delete recursive: "/path/to/dir", n element(s) removed'.
@@ -155,10 +174,12 @@ class Files(tunnel.Tunnel):
             path (str): Directory from which to rename the file
             name (str): File to rename
             new_name (str): New name to give the file
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error from server
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
 
         Returns:
             str: Info about file renamed. Something along the lines of 'Rename: "/path/to/file" to "newfile"'.
@@ -173,6 +194,7 @@ class Files(tunnel.Tunnel):
 
         return tasks[2].result()
 
+    @util._check_socket
     async def upload(self, source, target, name=None, timeout=None):
         '''
         Upload a stream to a device.
@@ -181,10 +203,12 @@ class Files(tunnel.Tunnel):
             source (io.IOBase): An IO instance from which to read the data. Must be open for reading.
             target (str): Path which to upload stream to on remote device
             name (str): Pass if target points at a directory instead of the file path. In that case, this will be the name of the file.
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
             :py:class:`~meshctrl.exceptions.FileTransferCancelled`: File transfer cancelled. Info available on the `stats` property
+            asyncio.TimeoutError: Command timed out
 
         Returns:
             dict: {result: bool whether upload succeeded, size: number of bytes uploaded}
@@ -198,17 +222,26 @@ class Files(tunnel.Tunnel):
             raise request["error"]
         return request["return"]
 
-    async def download(self, source, target, timeout=None):
+    def _http_download(self, url, target, timeout):
+        response = self._http_opener.open(url, timeout=timeout)
+        shutil.copyfileobj(response, target)
+
+    @util._check_socket
+    async def download(self, source, target, skip_http_attempt=False, skip_ws_attempt=False, timeout=None):
         '''
         Download a file from a device into a writable stream.
 
         Args:
             source (str): Path from which to download from device
             target (io.IOBase): Stream to which to write data. If None, create new BytesIO which is both readable and writable.
+            skip_http_attempt (bool): Meshcentral has a way to download files through http(s) instead of through the websocket. This method tends to be much faster than using the websocket, so we try it first. Setting this to True will skip that attempt and just use the established websocket connection.
+            skip_ws_attempt (bool): Like skip_http_attempt, except just throw an error if the http attempt fails instead of trying with the websocket
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
             :py:class:`~meshctrl.exceptions.FileTransferCancelled`: File transfer cancelled. Info available on the `stats` property
+            asyncio.TimeoutError: Command timed out
 
         Returns:
             dict: {result: bool whether download succeeded, size: number of bytes downloaded}
@@ -216,6 +249,29 @@ class Files(tunnel.Tunnel):
         request_id = f"download_{self._get_request_id()}"
         data = { "action": 'download', "sub": 'start', "id": request_id, "path": source }
         request = {"id": request_id, "data": data, "type": "download", "source": source, "target": target, "size": 0, "finished": asyncio.Event(), "errored": asyncio.Event(), "error": None}
+        if not skip_http_attempt:
+            start_pos = target.tell()
+            try:
+                params = urllib.parse.urlencode({
+                    "c": self._authcookie["cookie"],
+                    "m": self._node.mesh.meshid.split("/")[-1],
+                    "n": self._node.nodeid.split("/")[-1],
+                    "f": source
+                })
+                url = self._session.url.replace('/control.ashx', f"/devicefile.ashx?{params}")
+                url = url.replace("wss://", "https://").replace("ws://", "http://")
+
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self._http_download, url, target, timeout)
+                size = target.tell() - start_pos
+                return {"result": True, "size": size}
+            except* Exception as eg:
+                if skip_ws_attempt:
+                    size = target.tell() - start_pos
+                    excs = eg.exceptions + (exceptions.FileTransferError("Errored", {"result": False, "size": size}),)
+                    raise ExceptionGroup("File download failed", excs)
+                target.seek(start_pos)
+
         await self._request_queue.put(request)
         await asyncio.wait_for(request["finished"].wait(), timeout)
         if request["error"] is not None:
@@ -230,7 +286,7 @@ class Files(tunnel.Tunnel):
             return
         if cmd["reqid"] == self._current_request["id"]:
             if cmd["action"] == "uploaddone":
-                self._current_request["return"] = {"result": "success", "size": self._current_request["size"]}
+                self._current_request["return"] = {"result": True, "size": self._current_request["size"]}
                 self._current_request["finished"].set()
             elif cmd["action"] == "uploadstart":
                 while True:
@@ -252,7 +308,7 @@ class Files(tunnel.Tunnel):
                 if self._current_request["inflight"] == 0 and self._current_request["complete"]:
                     await self._message_queue.put(json.dumps({ "action": 'uploaddone', "reqid": self._current_request["id"]}))
             elif cmd["action"] == "uploaderror":
-                self._current_request["return"] = {"result": "canceled", "size": self._current_request["size"]}
+                self._current_request["return"] = {"result": False, "size": self._current_request["size"]}
                 self._current_request["error"] = exceptions.FileTransferError("Errored", self._current_request["return"])
                 self._current_request["errored"].set()
                 self._current_request["finished"].set()
@@ -268,7 +324,7 @@ class Files(tunnel.Tunnel):
                 self._current_request["target"].write(data[4:])
                 self._current_request["size"] += len(data)-4
             if (data[3] & 1) != 0:
-                self._current_request["return"] = {"result": "success", "size": self._current_request["size"]}
+                self._current_request["return"] = {"result": True, "size": self._current_request["size"]}
                 self._current_request["finished"].set()
             else:
                 await self._message_queue.put(json.dumps({ "action": 'download', "sub": 'ack', "id": self._current_request["id"] }))
@@ -279,7 +335,7 @@ class Files(tunnel.Tunnel):
                 if cmd["sub"] == "start":
                     await self._message_queue.put(json.dumps({ "action": 'download', "sub": 'startack', "id": self._current_request["id"] }))
                 elif cmd["sub"] == "cancel":
-                    self._current_request["return"] = {"result": "canceled", "size": self._current_request["size"]}
+                    self._current_request["return"] = {"result": False, "size": self._current_request["size"]}
                     self._current_request["error"] = exceptions.FileTransferCancelled("Cancelled", self._current_request["return"])
                     self._current_request["errored"].set()
                     self._current_request["finished"].set()

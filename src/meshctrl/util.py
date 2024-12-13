@@ -149,7 +149,7 @@ def _check_socket(f):
         finally:
             if not self.alive and self._main_loop_error is not None:
                 raise self._main_loop_error
-            elif not self.alive:
+            elif not self.alive and self.initialized.is_set():
                 raise exceptions.SocketError("Socket Closed")
             return await f(self, *args, **kwargs)
     return wrapper

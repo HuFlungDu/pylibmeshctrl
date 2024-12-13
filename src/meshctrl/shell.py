@@ -78,7 +78,6 @@ class Shell(tunnel.Tunnel):
         read_bytes = 0
         while True:
             d = self._buffer.read1(length-read_bytes if length is not None else -1)
-            # print(f"read: {d}")
             read_bytes += len(d)
             ret.append(d)
             if length is not None and read_bytes >= length:
@@ -163,7 +162,6 @@ class SmartShell(object):
             command += "\n"
         await self._shell.write(command)
         data = await self._shell.expect(self._regex, timeout=timeout)
-        print(repr(data))
         return data[:self._compiled_regex.search(data).span()[0]]
 
     @property
@@ -178,14 +176,18 @@ class SmartShell(object):
     def initialized(self):
         return self._shell.initialized
 
+    @property
+    def _socket_open(self):
+        return self._shell._socket_open
+
     async def close(self):
-        await self._init_task
+        await asyncio.wait_for(self._init_task, 10)
         return await self._shell.close()
 
     async def __aenter__(self):
-        await self._init_task
         await self._shell.__aenter__()
+        await asyncio.wait_for(self._init_task, 10)
         return self
 
     async def __aexit__(self, *args):
-        return await self._shell.__aexit__(*args)
+        await self.close()

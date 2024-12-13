@@ -43,10 +43,8 @@ class Agent(object):
         return self
 
     def __exit__(self, exc_t, exc_v, exc_tb):
-        try:
-            requests.post("{self._clienturl}/remove-agent/{self.nodeid}")
-        except:
-            pass
+        requests.post(f"{self._clienturl}/remove-agent/{self.nodeid}")
+
 
 class TestEnvironment(object):
     def __init__(self):

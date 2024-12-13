@@ -43,7 +43,7 @@ async def test_urlparse():
     try:
         async with meshctrl.Session("wss://localhost", user="unprivileged", password="Not a real password", ignore_ssl=True) as s:
             pass
-    except* TimeoutError:
+    except* asyncio.TimeoutError:
         #We're not running a server, so timeout is our expected outcome
         pass
 
@@ -52,5 +52,4 @@ async def test_urlparse():
         async with meshctrl.Session("https://localhost", user="unprivileged", password="Not a real password", ignore_ssl=True) as s:
             pass
     except* ValueError:
-        #We're not running a server, so timeout is our expected outcome
         pass

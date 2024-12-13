@@ -215,7 +215,6 @@ class Session(object):
         return self._command_id
 
     async def close(self):
-        # Dunno yet
         self._main_loop_task.cancel()
         try:
             await self._main_loop_task
@@ -1818,15 +1817,16 @@ class Session(object):
             raise ValueError("No user or session given")
         await self._message_queue.put(json.dumps({"action": "interuser", "data": data, "sessionid": session, "userid": user}))
 
-    async def upload(self, nodeid, source, target, unique_file_tunnel=False, timeout=None):
+    async def upload(self, node, source, target, unique_file_tunnel=False, timeout=None):
         '''
         Upload a stream to a device. This creates an _File and destroys it every call. If you need to upload multiple files, use {@link Session#file_explorer} instead.
 
         Args:
-            nodeid (str): Unique id to upload stream to
+            node (~meshctrl.device.Device|str): Device or id of device to which to upload the file. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
             source (io.IOBase): An IO instance from which to read the data. Must be open for reading.
             target (str): Path which to upload stream to on remote device
             unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
@@ -1835,23 +1835,26 @@ class Session(object):
         Returns:
             dict: {result: bool whether upload succeeded, size: number of bytes uploaded}
         '''
+        if not isinstance(node, device.Device):
+            node = await self.device_info(node)
         if unique_file_tunnel:
-            async with self.file_explorer(nodeid) as files:
+            async with self.file_explorer(node) as files:
                 return await files.upload(source, target)
         else:
-            files = await self._cached_file_explorer(nodeid, nodeid)
+            files = await self._cached_file_explorer(node, node.nodeid)
             return await files.upload(source, target, timeout=timeout)
 
 
-    async def upload_file(self, nodeid, filepath, target, unique_file_tunnel=False, timeout=None):
+    async def upload_file(self, node, filepath, target, unique_file_tunnel=False, timeout=None):
         '''
         Friendly wrapper around :py:class:`~meshctrl.session.Session.upload` to upload from a filepath. Creates a ReadableStream and calls upload.
 
         Args:
-            nodeid (str): Unique id to upload file to
+            node (~meshctrl.device.Device|str): Device or id of device to which to upload the file. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
             filepath (str): Path from which to read the data
             target (str): Path which to upload file to on remote device
             unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
@@ -1861,17 +1864,20 @@ class Session(object):
             dict: {result: bool whether upload succeeded, size: number of bytes uploaded}
          '''
         with open(filepath, "rb") as f:
-            return await self.upload(nodeid, f, target, unique_file_tunnel, timeout=timeout)
+            return await self.upload(node, f, target, unique_file_tunnel, timeout=timeout)
 
-    async def download(self, nodeid, source, target=None, unique_file_tunnel=False, timeout=None):
+    async def download(self, node, source, target=None, skip_http_attempt=False, skip_ws_attempt=False, unique_file_tunnel=False, timeout=None):
         '''
         Download a file from a device into a writable stream. This creates an :py:class:`~meshctrl.files.Files` and destroys it every call. If you need to upload multiple files, use :py:class:`~meshctrl.session.Session.file_explorer` instead.
 
         Args:
-            nodeid (str): Unique id to download file from
+            node (~meshctrl.device.Device|str): Device or id of device from which to download the file. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
             source (str): Path from which to download from device
             target (io.IOBase): Stream to which to write data. If None, create new BytesIO which is both readable and writable.
+            skip_http_attempt (bool): Meshcentral has a way to download files through http(s) instead of through the websocket. This method tends to be much faster than using the websocket, so we try it first. Setting this to True will skip that attempt and just use the established websocket connection.
+            skip_ws_attempt (bool): Like skip_http_attempt, except just throw an error if the http attempt fails instead of trying with the websocket
             unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
@@ -1880,29 +1886,34 @@ class Session(object):
         Returns:
             io.IOBase: The stream which has been downloaded into. Cursor will be at the beginning of where the file is downloaded.
         '''
+        if not isinstance(node, device.Device):
+            node = await self.device_info(node)
         if target is None:
             target = io.BytesIO()
         start = target.tell()
         if unique_file_tunnel:
-            async with self.file_explorer(nodeid) as files:
+            async with self.file_explorer(node) as files:
                 await files.download(source, target)
                 target.seek(start)
                 return target
         else:
-            files = await self._cached_file_explorer(nodeid, nodeid)
+            files = await self._cached_file_explorer(node, node.nodeid)
             await files.download(source, target, timeout=timeout)
             target.seek(start)
             return target
 
-    async def download_file(self, nodeid, source, filepath, unique_file_tunnel=False, timeout=None):
+    async def download_file(self, node, source, filepath, skip_http_attempt=False, skip_ws_attempt=False, unique_file_tunnel=False, timeout=None):
         '''
         Friendly wrapper around :py:class:`~meshctrl.session.Session.download` to download to a filepath. Creates a WritableStream and calls download.
 
         Args:
-            nodeid (str): Unique id to download file from
+            node (~meshctrl.device.Device|str): Device or id of device from which to download the file. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
             source (str): Path from which to download from device
             filepath (str): Path to which to download data
+            skip_http_attempt (bool): Meshcentral has a way to download files through http(s) instead of through the websocket. This method tends to be much faster than using the websocket, so we try it first. Setting this to True will skip that attempt and just use the established websocket connection.
+            skip_ws_attempt (bool): Like skip_http_attempt, except just throw an error if the http attempt fails instead of trying with the websocket
             unique_file_tunnel (bool): True: Create a unique :py:class:`~meshctrl.files.Files` for this call, which will be cleaned up on return, else use cached or cache :py:class:`~meshctrl.files.Files`
+            timeout (int): duration in seconds to wait for a response before throwing an error
 
         Raises:
             :py:class:`~meshctrl.exceptions.FileTransferError`: File transfer failed. Info available on the `stats` property
@@ -1912,24 +1923,39 @@ class Session(object):
             None
          '''
         with open(filepath, "wb") as f:
-            await self.download(nodeid, source, f, unique_file_tunnel, timeout=timeout)
+            await self.download(node, source, f, unique_file_tunnel, timeout=timeout)
 
-    async def _cached_file_explorer(self, nodeid, _id):
+    async def _cached_file_explorer(self, node, _id):
         if (_id not in self._file_tunnels or not self._file_tunnels[_id].alive):
-            self._file_tunnels[_id] = self.file_explorer(nodeid)
+            self._file_tunnels[_id] = await self.file_explorer(node).__aenter__()
         await self._file_tunnels[_id].initialized.wait()
         return self._file_tunnels[_id]
 
-    def file_explorer(self, nodeid):
+    def file_explorer(self, node):
         '''
         Create, initialize, and return an :py:class:`~meshctrl.files.Files` object for the given node
 
         Args:
-            nodeid (str): Unique id on which to open file explorer
+            node (~meshctrl.device.Device|str): Device or id of device on which to open file explorer. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
 
         Returns:
             :py:class:`~meshctrl.files.Files`: A newly initialized file explorer.
-         '''
-        return files.Files(self, nodeid)
+        '''
+        return _FileExplorerWrapper(self, node)
 
-        
+
+# This is a little yucky, but I can't get a good API otherwise. Since Tunnel objects are only useable as context managers anyway, this should be fine.
+class _FileExplorerWrapper:
+    def __init__(self, session, node):
+        self.session = session
+        self.node = node
+        self._files = None
+
+    async def __aenter__(self):
+        if not isinstance(self.node, device.Device):
+            self.node = await self.session.device_info(self.node)
+        self._files = files.Files(self.session, self.node)
+        return await self._files.__aenter__()
+
+    async def __aexit__(self, exc_t, exc_v, exc_tb):
+        return await self._files.__aexit__(exc_t, exc_v, exc_tb)
