@@ -27,11 +27,6 @@ class Tunnel(object):
         self._message_queue = asyncio.Queue()
         self._send_task = None
         self._listen_task = None
-        self._ssl_context = None
-        if self._session._ignore_ssl:
-            self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            self._ssl_context.check_hostname = False
-            self._ssl_context.verify_mode = ssl.CERT_NONE
 
     async def close(self):
         self._main_loop_task.cancel()
@@ -53,8 +48,8 @@ class Tunnel(object):
             self._authcookie = await self._session._send_command_no_response_id({ "action":"authcookie" })
 
             options = {}
-            if self._ssl_context is not None:
-                options = { "ssl": self._ssl_context }
+            if self._session._ssl_context is not None:
+                options["ssl"] = self._session._ssl_context
 
             if (len(self.node_id.split('/')) != 3):
                 self.node_id = f"node/{self._session._currentDomain or ""}/{self.node_id}"
@@ -82,7 +77,6 @@ class Tunnel(object):
                 except* websockets.ConnectionClosed as e:
                     self._socket_open.clear()
                     if not self.auto_reconnect:
-                        self.alive = False
                         raise
         except* Exception as eg:
             self.alive = False

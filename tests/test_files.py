@@ -70,7 +70,7 @@ async def test_upload_download(env):
                     else:
                         break
 
-                randdata = random.randbytes(2000000)
+                randdata = random.randbytes(20000000)
                 upfilestream = io.BytesIO(randdata)
                 downfilestream = io.BytesIO()
 
@@ -99,7 +99,7 @@ async def test_upload_download(env):
                     start = time.perf_counter()
                     r = await files.download(f"{pwd}/test", downfilestream, skip_ws_attempt=True, timeout=5)
                     print("\ninfo files_download: {}\n".format(r))
-                    assert r["result"] == True, "Domnload failed"
+                    assert r["result"] == True, "Download failed"
                     assert r["size"] == len(randdata), "Downloaded wrong number of bytes"
                     print(f"http download time: {time.perf_counter()-start}")
 
@@ -110,7 +110,7 @@ async def test_upload_download(env):
                     start = time.perf_counter()
                     r = await files.download(f"{pwd}/test", downfilestream, skip_http_attempt=True, timeout=5)
                     print("\ninfo files_download: {}\n".format(r))
-                    assert r["result"] == True, "Domnload failed"
+                    assert r["result"] == True, "Download failed"
                     assert r["size"] == len(randdata), "Downloaded wrong number of bytes"
                     print(f"ws download time: {time.perf_counter()-start}")
 

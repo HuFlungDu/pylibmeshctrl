@@ -124,15 +124,17 @@ class Session(object):
         self._message_queue = asyncio.Queue()
         self._send_task = None
         self._listen_task = None
+        self._ssl_context = None
+        if self._ignore_ssl:
+            self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            self._ssl_context.check_hostname = False
+            self._ssl_context.verify_mode = ssl.CERT_NONE
 
     async def _main_loop(self):
         try:
             options = {}
-            if self._ignore_ssl:
-                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
-                options = { "ssl": ssl_context }
+            if self._ssl_context is not None:
+                options["ssl"] = self._ssl_context
 
             headers = websockets.datastructures.Headers()
 
@@ -215,11 +217,14 @@ class Session(object):
         return self._command_id
 
     async def close(self):
-        self._main_loop_task.cancel()
         try:
-            await self._main_loop_task
-        except asyncio.CancelledError:
-            pass
+            await asyncio.gather(*[tunnel.close() for name, tunnel in self._file_tunnels.items()])
+        finally:
+            self._main_loop_task.cancel()
+            try:
+                await self._main_loop_task
+            except asyncio.CancelledError:
+                pass
 
     @util._check_socket
     async def __aenter__(self):

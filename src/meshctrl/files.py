@@ -27,7 +27,7 @@ class Files(tunnel.Tunnel):
                 "https_proxy": self._session._proxy
             }
         self._proxy_handler = urllib.request.ProxyHandler(proxies=proxies)
-        self._http_opener = urllib.request.build_opener(self._proxy_handler, urllib.request.HTTPSHandler(context=self._ssl_context))
+        self._http_opener = urllib.request.build_opener(self._proxy_handler, urllib.request.HTTPSHandler(context=self._session._ssl_context))
 
 
     def _get_request_id(self):

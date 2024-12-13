@@ -278,7 +278,7 @@ async def test_mesh_device(env):
 
             assert await admin_session.move_to_device_group([agent.nodeid], mesh.name, isname=True, timeout=5), "Failed to move mesh to new device group by name"
 
-            # For now, this expects no response. If we ever figure out why the server isn't sending console information te us when it should, fix this.
+            # For now, this expe namects no response. If we ever figure out why the server isn't sending console information te us when it should, fix this.
             # assert "meshagent" in (await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
@@ -408,7 +408,7 @@ async def test_session_files(env):
                         break
                 pwd = (await admin_session.run_command(agent.nodeid, "pwd", timeout=10))[agent.nodeid]["result"].strip()
 
-                randdata = random.randbytes(2000000)
+                randdata = random.randbytes(20000000)
                 upfilestream = io.BytesIO(randdata)
                 downfilestream = io.BytesIO()
                 os.makedirs(os.path.join(thisdir, "data"), exist_ok=True)
