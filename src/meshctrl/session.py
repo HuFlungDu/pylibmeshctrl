@@ -1844,7 +1844,7 @@ class Session(object):
             node = await self.device_info(node)
         if unique_file_tunnel:
             async with self.file_explorer(node) as files:
-                return await files.upload(source, target)
+                return await files.upload(source, target, timeout=timeout)
         else:
             files = await self._cached_file_explorer(node, node.nodeid)
             return await files.upload(source, target, timeout=timeout)
@@ -1898,12 +1898,12 @@ class Session(object):
         start = target.tell()
         if unique_file_tunnel:
             async with self.file_explorer(node) as files:
-                await files.download(source, target)
+                await files.download(source, target, skip_http_attempt=skip_http_attempt, skip_ws_attempt=skip_ws_attempt, timeout=timeout)
                 target.seek(start)
                 return target
         else:
             files = await self._cached_file_explorer(node, node.nodeid)
-            await files.download(source, target, timeout=timeout)
+            await files.download(source, target, skip_http_attempt=skip_http_attempt, skip_ws_attempt=skip_ws_attempt, timeout=timeout)
             target.seek(start)
             return target
 
@@ -1928,7 +1928,7 @@ class Session(object):
             None
          '''
         with open(filepath, "wb") as f:
-            await self.download(node, source, f, unique_file_tunnel, timeout=timeout)
+            await self.download(node, source, f, skip_http_attempt=skip_http_attempt, skip_ws_attempt=skip_ws_attempt, unique_file_tunnel=unique_file_tunnel, timeout=timeout)
 
     async def _cached_file_explorer(self, node, _id):
         if (_id not in self._file_tunnels or not self._file_tunnels[_id].alive):
