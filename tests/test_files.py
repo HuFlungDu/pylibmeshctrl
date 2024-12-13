@@ -53,6 +53,18 @@ async def test_commands(env):
         finally:
             assert (await admin_session.remove_device_group(mesh.meshid, timeout=10)), "Failed to remove device group"
 
+async def test_os_proxy_bypass():
+    os.environ["no_proxy"] = "*"
+    import urllib
+    import urllib.request
+    os_proxies = urllib.request.getproxies()
+    meshctrl_proxies = meshctrl.files.urllib.request.getproxies()
+    print(f"os_proxies: {os_proxies}")
+    print(f"meshctrl_proxies: {meshctrl_proxies}")
+    assert meshctrl_proxies.get("no", None) == None, "Meshctrl is using system proxies"
+    assert os_proxies.get("no", None) == "*", "System is using meshctrl proxies"
+    assert os_proxies != meshctrl_proxies, "Override didn't work"
+
 async def test_upload_download(env):
     async with meshctrl.Session("wss://" + env.dockerurl, user="admin", password=env.users["admin"], ignore_ssl=True, proxy=env.proxyurl) as admin_session:
         mesh = await admin_session.add_device_group("test", description="This is a test group", amtonly=False, features=0, consent=0, timeout=10)

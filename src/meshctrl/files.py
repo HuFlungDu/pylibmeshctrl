@@ -4,8 +4,26 @@ from . import exceptions
 from . import util
 import asyncio
 import json
-import urllib
+import importlib
+import importlib.util
 import shutil
+
+# import urllib
+# import urllib.request
+import urllib.parse
+old_parse = urllib.parse
+# Default proxy handler uses OS defined no_proxy in order to be helpful. This is unhelpful for our usecase. Monkey patch out proxy getting functions, but don't effect the user's urllib instance.
+spec = importlib.util.find_spec('urllib')
+urllib = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(urllib)
+spec = importlib.util.find_spec('urllib.request')
+urllib.request = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(urllib.request)
+urllib.parse = old_parse
+urllib.request.getproxies_environment = lambda: {}
+urllib.request.getproxies_registry = lambda: {}
+urllib.request.getproxies_macosx_sysconf = lambda: {}
+urllib.request.getproxies = lambda: {}
 
 class Files(tunnel.Tunnel):
     def __init__(self, session, node):
@@ -23,8 +41,9 @@ class Files(tunnel.Tunnel):
         if self._session._proxy is not None:
             # We don't know which protocol the user is going to use, but we only need support one at a time, so just assume both
             proxies = {
-                "http_proxy": self._session._proxy,
-                "https_proxy": self._session._proxy
+                "http": self._session._proxy,
+                "https": self._session._proxy,
+                "no": ""
             }
         self._proxy_handler = urllib.request.ProxyHandler(proxies=proxies)
         self._http_opener = urllib.request.build_opener(self._proxy_handler, urllib.request.HTTPSHandler(context=self._session._ssl_context))
