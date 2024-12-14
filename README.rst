@@ -38,7 +38,7 @@ Library for remotely interacting with a
 Installation
 ------------
 
-pip install meshctrl
+pip install libmeshctrl
 
 Usage
 -----
