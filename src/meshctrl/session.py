@@ -1824,7 +1824,7 @@ class Session(object):
 
     async def upload(self, node, source, target, unique_file_tunnel=False, timeout=None):
         '''
-        Upload a stream to a device. This creates an _File and destroys it every call. If you need to upload multiple files, use {@link Session#file_explorer} instead.
+        Upload a stream to a device.
 
         Args:
             node (~meshctrl.device.Device|str): Device or id of device to which to upload the file. If it is a device, it must have a ~meshctrl.mesh.Mesh device associated with it (the default). If it is a string, the device will be fetched prior to tunnel creation.
