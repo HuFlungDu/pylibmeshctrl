@@ -52,7 +52,7 @@ class Tunnel(object):
                 options["ssl"] = self._session._ssl_context
 
             if (len(self.node_id.split('/')) != 3):
-                self.node_id = f"node/{self._session._currentDomain or ""}/{self.node_id}"
+                self.node_id = f"node/{self._session._currentDomain or ''}/{self.node_id}"
 
             self._tunnel_id = util._get_random_hex(6)
 
