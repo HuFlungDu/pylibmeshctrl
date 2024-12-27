@@ -46,7 +46,7 @@ class Mesh(object):
         if not isinstance(created_at, datetime.datetime) and created_at is not None:
             try:
                 created_at = datetime.datetime.fromtimestamp(created_at)
-            except OSError:
+            except (OSError, ValueError):
                 # Meshcentral returns in miliseconds, while fromtimestamp, and most of python, expects the argument in seconds. Try seconds frist, then translate from ms if it fails.
                 # This doesn't work for really early timestamps, but I don't expect that to be a problem here.
                 created_at = datetime.datetime.fromtimestamp(created_at/1000.0)
