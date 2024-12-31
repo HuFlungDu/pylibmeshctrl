@@ -12,6 +12,7 @@ class Device(object):
         name (str|None): Device name as it is shown on the meshcentral server
         description (str|None): Device description as it is shown on the meshcentral server. Also accepted as desc.
         tags (list[str]|None): tags associated with device.
+        users (list[str]|None): latest known users.
         created_at (datetime.Datetime|int|None): Time at which device mas created. Also accepted as agct.
         computer_name (str|None): Device name as reported from the agent. This may be different from name. Also accepted as rname.
         icon (~meshctrl.constants.Icon): Icon displayed on the website
@@ -38,6 +39,7 @@ class Device(object):
         name (str|None): Device name as it is shown on the meshcentral server
         description (str|None): Device description as it is shown on the meshcentral server.
         tags (list[str]): tags associated with device.
+        users (list[str]): users last known to the device.
         computer_name (str|None): Device name as reported from the agent. This may be different from name. Also accepted as rname.
         icon (~meshctrl.constants.Icon): Icon displayed on the website
         mesh (~meshctrl.mesh.Mesh|None): Mesh object under which this device exists. Is None for individual device access.
@@ -90,6 +92,7 @@ class Device(object):
         self.description = description if description is not None else desc
         self.os_description = os_description if os_description is not None else osdesc
         self.tags = tags if tags is not None else []
+        self.users = users if users if not None else []
         self.details = details if details is not None else {}
 
         created_at = created_at if created_at is not None else agct
@@ -340,10 +343,10 @@ class Device(object):
     def __str__(self):
         return f"<Device: nodeid={self.nodeid} name={self.name} description={self.description} computer_name={self.computer_name} icon={self.icon} "\
                f"mesh={self.mesh} meshtype={self.meshtype} meshname={self.meshname} domain={self.domain} host={self.host} ip={self.ip} "\
-               f"tags={self.tags} details={self.details} created_at={self.created_at} lastaddr={self.lastaddr} lastconnect={self.lastconnect} "\
+               f"tags={self.tags} users={self.users} details={self.details} created_at={self.created_at} lastaddr={self.lastaddr} lastconnect={self.lastconnect} "\
                f"connected={self.connected} powered_on={self.powered_on} os_description={self.os_description} links={self.links} _extra_props={self._extra_props}>"
     def __repr__(self):
         return f"Device(nodeid={repr(self.nodeid)}, session={repr(self._session)}, name={repr(self.name)}, description={repr(self.description)}, computer_name={repr(self.computer_name)}, icon={repr(self.icon)}, "\
                f"mesh={repr(self.mesh)}, meshtype={repr(self.meshtype)}, meshname={repr(self.meshname)}, domain={repr(self.domain)}, host={repr(self.host)}, ip={repr(self.ip)}, "\
-               f"tags={repr(self.tags)}, details={repr(self.details)} created_at={repr(self.created_at)} lastaddr={repr(self.lastaddr)} lastconnect={repr(self.lastconnect)} "\
+               f"tags={repr(self.tags)}, users={repr(self.users)}, details={repr(self.details)}, created_at={repr(self.created_at)}, lastaddr={repr(self.lastaddr)}, lastconnect={repr(self.lastconnect)} "\
                f"connected={repr(self.connected)}, powered_on={repr(self.powered_on)}, os_description={repr(self.os_description)}, links={repr(self.links)}, **{repr(self._extra_props)})"
