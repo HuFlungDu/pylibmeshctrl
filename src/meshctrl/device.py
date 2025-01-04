@@ -106,7 +106,7 @@ class Device(object):
         if not isinstance(lastconnect, datetime.datetime) and lastconnect is not None:
             try:
                 lastconnect = datetime.datetime.fromtimestamp(lastconnect)
-            except OSError:
+            except (OSError, ValueError):
                 # Meshcentral returns in miliseconds, while fromtimestamp, and most of python, expects the argument in seconds. Try seconds frist, then translate from ms if it fails.
                 # This doesn't work for really early timestamps, but I don't expect that to be a problem here.
                 lastconnect = datetime.datetime.fromtimestamp(lastconnect/1000.0)
