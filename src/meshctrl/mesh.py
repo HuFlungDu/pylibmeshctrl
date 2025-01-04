@@ -31,7 +31,7 @@ class Mesh(object):
         domain (str|None): Domain on server to which device is connected.
         links (dict[str, ~meshctrl.types.UserLink]|None): Collection of links for the device group
     '''
-    def __init__(self, meshid, session, creation=None, created_at=None, name=None, 
+    def __init__(self, meshid, session, creation=None, created_at=None, name=None,
                        mtype=None, meshtype=None, creatorid=None, desc=None, description=None,
                        domain=None, creatorname=None, links=None, **kwargs):
         self.meshid = meshid
@@ -46,7 +46,7 @@ class Mesh(object):
         if not isinstance(created_at, datetime.datetime) and created_at is not None:
             try:
                 created_at = datetime.datetime.fromtimestamp(created_at)
-            except OSError:
+            except (OSError, ValueError):
                 # Meshcentral returns in miliseconds, while fromtimestamp, and most of python, expects the argument in seconds. Try seconds frist, then translate from ms if it fails.
                 # This doesn't work for really early timestamps, but I don't expect that to be a problem here.
                 created_at = datetime.datetime.fromtimestamp(created_at/1000.0)
@@ -83,7 +83,7 @@ class Mesh(object):
         Returns:
             dict[str, ~meshctrl.types.AddUsersToDeviceGroupResponse]: Object showing which were added correctly and which were not, along with their result messages. str is userid to map response.
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
         '''

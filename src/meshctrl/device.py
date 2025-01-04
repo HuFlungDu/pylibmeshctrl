@@ -54,11 +54,11 @@ class Device(object):
         links (dict[str, ~meshctrl.types.UserLink]|None): Collection of links for the device
         details (dict[str, dict]): Extra details about the device. These are not well defined, but are filled by calling :py:meth:`~meshctrl.session.Session.list_devices` with `details=True`.
     '''
-    def __init__(self, nodeid, session, agent=None, 
+    def __init__(self, nodeid, session, agent=None,
                        name=None, desc=None, description=None,
                        tags=None,
-                       agct=None, created_at=None, 
-                       rname=None, computer_name=None, icon=constants.Icon.desktop, 
+                       agct=None, created_at=None,
+                       rname=None, computer_name=None, icon=constants.Icon.desktop,
                        mesh=None, mtype=None, meshtype=None, groupname=None, meshname=None,
                        domain=None, host=None, ip=None, conn=None, connected=None,
                        pwr=None, powered_on=None,
@@ -96,7 +96,7 @@ class Device(object):
         if not isinstance(created_at, datetime.datetime) and created_at is not None:
             try:
                 created_at = datetime.datetime.fromtimestamp(created_at)
-            except OSError:
+            except (OSError, ValueError):
                 # Meshcentral returns in miliseconds, while fromtimestamp, and most of python, expects the argument in seconds. Try seconds frist, then translate from ms if it fails.
                 # This doesn't work for really early timestamps, but I don't expect that to be a problem here.
                 created_at = datetime.datetime.fromtimestamp(created_at/1000.0)
@@ -129,7 +129,7 @@ class Device(object):
         Returns:
             bool: True on success, raise otherwise
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
@@ -147,7 +147,7 @@ class Device(object):
         Returns:
             bool: True on success, raise otherwise
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
@@ -166,7 +166,7 @@ class Device(object):
         Returns:
             bool: True on success, raise otherwise
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
@@ -183,7 +183,7 @@ class Device(object):
         Returns:
             ~meshctrl.device.Device: Object representing the state of the device. This will be a new device, it will not update this device.
 
-        Raises:    
+        Raises:
             ValueError: `Invalid device id` if device is not found
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
@@ -205,7 +205,7 @@ class Device(object):
         Returns:
             bool: True if successful, raise otherwise
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
@@ -227,7 +227,7 @@ class Device(object):
         Returns:
             ~meshctrl.types.RunCommandResponse: Output of command
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             ValueError: `Invalid device id` if device is not found
@@ -268,7 +268,7 @@ class Device(object):
         Returns:
             bool: True if successful
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
          '''
@@ -286,7 +286,7 @@ class Device(object):
         Returns:
             bool: True if successful
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
          '''
@@ -302,7 +302,7 @@ class Device(object):
         Returns:
             bool: True if successful
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
         '''
@@ -317,7 +317,7 @@ class Device(object):
         Returns:
             bool: True if successful
 
-        Raises:    
+        Raises:
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
         '''
