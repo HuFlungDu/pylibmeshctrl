@@ -140,17 +140,20 @@ def compare_dict(dict1, dict2):
         return False
 
 def _check_socket(f):
+    async def _check_errs(self):
+        if not self.alive and self._main_loop_error is not None:
+            raise self._main_loop_error
+        elif not self.alive and self.initialized.is_set():
+            raise exceptions.SocketError("Socket Closed")
+
     @functools.wraps(f)
     async def wrapper(self, *args, **kwargs):
         try:
-            async with asyncio.TaskGroup() as tg:
-                tg.create_task(asyncio.wait_for(self.initialized.wait(), 10))
-                tg.create_task(asyncio.wait_for(self._socket_open.wait(), 10))
+            await asyncio.wait_for(self.initialized.wait(), 10)
+            await _check_errs(self)
+            await asyncio.wait_for(self._socket_open.wait(), 10)
         finally:
-            if not self.alive and self._main_loop_error is not None:
-                raise self._main_loop_error
-            elif not self.alive and self.initialized.is_set():
-                raise exceptions.SocketError("Socket Closed")
+            await _check_errs(self)
             return await f(self, *args, **kwargs)
     return wrapper
 

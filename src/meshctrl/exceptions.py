@@ -2,7 +2,9 @@ class MeshCtrlError(Exception):
     """
     Base class for Meshctrl errors
     """
-    pass
+    def __init__(self, message, *args, **kwargs):
+        self.message = message
+        super().__init__(message, *args, **kwargs)
 
 class ServerError(MeshCtrlError):
     """
@@ -25,6 +27,7 @@ class FileTransferError(MeshCtrlError):
     """
     def __init__(self, message, stats):
         self.stats = stats
+        super().__init__(message)
 
 class FileTransferCancelled(FileTransferError):
     """
