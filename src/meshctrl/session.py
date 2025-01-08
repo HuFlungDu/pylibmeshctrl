@@ -533,7 +533,7 @@ class Session(object):
                 data = await event_queue.get()
                 yield data
         finally:
-            self._eventer.off("server_event", _)
+            self._eventer.off("raw", _)
 
     async def events(self, filter=None):
         '''
@@ -1463,6 +1463,7 @@ class Session(object):
                         result.setdefault(node, {})["complete"] = True
                         if all(_["complete"] for key, _ in result.items()):
                             break
+                        continue
                     elif (event["value"].startswith("Run commands")):
                         continue
                     result[node]["result"].append(event["value"])
