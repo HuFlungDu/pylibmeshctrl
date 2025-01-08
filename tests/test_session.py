@@ -206,12 +206,21 @@ async def test_mesh_device(env):
 
             r = await admin_session.list_devices(details=True, timeout=10)
             print("\ninfo list_devices_details: {}\n".format(r))
+            assert len(r), "No devices found"
+            assert r[0].mesh is not None, "No mesh found"
+            assert r[0].mesh.name is not None, "Mesh details not filled correctly"
 
             r = await admin_session.list_devices(group=mesh.name, timeout=10)
             print("\ninfo list_devices_group: {}\n".format(r))
+            assert len(r), "No devices found"
+            assert r[0].mesh is not None, "No mesh found"
+            assert r[0].mesh.name is not None, "Mesh details not filled correctly"
 
             r = await admin_session.list_devices(meshid=mesh.meshid, timeout=10)
             print("\ninfo list_devices_meshid: {}\n".format(r))
+            assert len(r), "No devices found"
+            assert r[0].mesh is not None, "No mesh found"
+            assert r[0].mesh.name is not None, "Mesh details not filled correctly"
 
             # Test editing device info propagating correctly
             assert await admin_session.edit_device(agent.nodeid, name="new_name", description="New Description", tags="device", consent=meshctrl.constants.ConsentFlags.all, timeout=10), "Failed to edit device info"
