@@ -533,7 +533,7 @@ class Session(object):
                 data = await event_queue.get()
                 yield data
         finally:
-            self._eventer.off("server_event", _)
+            self._eventer.off("raw", _)
 
     async def events(self, filter=None):
         '''
