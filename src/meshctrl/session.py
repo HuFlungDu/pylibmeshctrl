@@ -1463,6 +1463,7 @@ class Session(object):
                         result.setdefault(node, {})["complete"] = True
                         if all(_["complete"] for key, _ in result.items()):
                             break
+                        continue
                     elif (event["value"].startswith("Run commands")):
                         continue
                     result[node]["result"].append(event["value"])
