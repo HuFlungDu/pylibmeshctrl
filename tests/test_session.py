@@ -5,6 +5,8 @@ import meshctrl
 import requests
 import random
 import io
+import traceback
+import time
 thisdir = os.path.dirname(os.path.realpath(__file__))
 
 async def test_admin(env):
@@ -77,6 +79,17 @@ async def test_users(env):
         pass
     else:
         raise Exception("Connected with no password")
+
+    start = time.time()
+    try:
+        async with meshctrl.Session(env.mcurl, user="admin", password="The wrong password", ignore_ssl=True) as admin_session:
+            pass
+    except* meshctrl.exceptions.ServerError as eg:
+        assert str(eg.exceptions[0]) == "Invalid Auth" or eg.exceptions[0].message == "Invalid Auth", "Didn't get invalid auth message"
+        assert time.time() - start < 10, "Invalid auth wasn't raised until after timeout"
+        pass
+    else:
+        raise Exception("Connected with bad password")
     async with meshctrl.Session(env.mcurl+"/", user="admin", password=env.users["admin"], ignore_ssl=True) as admin_session,\
                meshctrl.Session(env.mcurl, user="privileged", password=env.users["privileged"], ignore_ssl=True) as privileged_session,\
                meshctrl.Session(env.mcurl, user="unprivileged", password=env.users["unprivileged"], ignore_ssl=True) as unprivileged_session:
