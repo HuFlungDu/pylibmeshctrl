@@ -187,21 +187,22 @@ async def test_mesh_device(env):
 
         assert r[0].description == "New description", "Description either failed to change, or was changed by a user without permission to do so"
 
-        with env.create_agent(mesh.short_meshid) as agent:
+        with env.create_agent(mesh.short_meshid) as agent,\
+             env.create_agent(mesh.short_meshid) as agent2:
             # Test agent added to device group being propagated correctly
             # Create agent isn't so good at waiting for the agent to show in the sessions. Give it a couple seconds to appear.
             for i in range(3):
                 try:
                     r = await admin_session.list_devices(timeout=10)
                     print("\ninfo list_devices: {}\n".format(r))
-                    assert len(r) == 1, "Incorrect number of agents connected"
+                    assert len(r) == 2, "Incorrect number of agents connected"
                 except:
                     if i == 2:
                         raise
                     await asyncio.sleep(1)
                 else:
                     break
-            assert len(await privileged_session.list_devices(timeout=10)) == 1, "Incorrect number of agents connected"
+            assert len(await privileged_session.list_devices(timeout=10)) == 2, "Incorrect number of agents connected"
             assert len(await unprivileged_session.list_devices(timeout=10)) == 0, "Unprivileged account has access to agent it should not"
 
             r = await admin_session.list_devices(details=True, timeout=10)
@@ -221,9 +222,12 @@ async def test_mesh_device(env):
             assert await admin_session.edit_device(agent.nodeid, consent=meshctrl.constants.ConsentFlags.none, timeout=10), "Failed to edit device info"
 
             # Test run_commands
-            r = await admin_session.run_command(agent.nodeid, "ls", timeout=10)
+            r = await admin_session.run_command([agent.nodeid, agent2.nodeid], "ls", timeout=10)
             print("\ninfo run_command: {}\n".format(r))
             assert "meshagent" in r[agent.nodeid]["result"], "ls gave incorrect data"
+            assert "meshagent" in r[agent2.nodeid]["result"], "ls gave incorrect data"
+            assert "Run commands completed." not in r[agent.nodeid]["result"], "Didn't parse run command ending correctly"
+            assert "Run commands completed." not in r[agent2.nodeid]["result"], "Didn't parse run command ending correctly"
             assert "meshagent" in (await privileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
 
             # Test run commands with ndividual device permissions
