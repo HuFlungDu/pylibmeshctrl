@@ -62,7 +62,7 @@ class TestEnvironment(object):
             return self
         # Destroy the env in case it wasn't killed correctly last time.
         subprocess.check_call(["docker", "compose", "down"], stdout=subprocess.DEVNULL, cwd=thisdir)
-        self._subp = _docker_process = subprocess.Popen(["docker", "compose", "up", "--build", "--force-recreate", "--no-deps"], stdout=subprocess.DEVNULL, cwd=thisdir)
+        self._subp = _docker_process = subprocess.Popen(["docker", "compose", "up", "--build", "--force-recreate", "--no-deps"], cwd=thisdir)
         if not self._wait_for_meshcentral():
             self.__exit__(None, None, None)
             raise Exception("Failed to create docker instance")
