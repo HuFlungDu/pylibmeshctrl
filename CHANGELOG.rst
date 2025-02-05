@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 1.1.1
+=============
+Bugs:
+	* Fixed bug when running device_info when user has access to multiple meshes
+
 Version 1.1.0
 =============
 Features:
