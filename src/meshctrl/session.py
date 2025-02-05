@@ -1363,10 +1363,10 @@ class Session(object):
                         node["meshid"] = meshid
                         if _mesh is not None:
                             node["mesh"] = _mesh
-                sysinfo["node"] = node
-                sysinfo["nodeid"] = nodeid
-                del sysinfo["result"]
-                del sysinfo["noinfo"]
+                        break
+                else:
+                    continue
+                break
         if node is None:
             raise ValueError("Invalid device id")
         if lastconnect is not None:
