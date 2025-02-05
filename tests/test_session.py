@@ -200,15 +200,17 @@ async def test_mesh_device(env):
 
         assert r[0].description == "New description", "Description either failed to change, or was changed by a user without permission to do so"
 
+        # There once was a bug that occured whenever running run_commands with multiple meshes. We need to add devices to both meshes to be sure that bug is squashed.
         with env.create_agent(mesh.short_meshid) as agent,\
-             env.create_agent(mesh.short_meshid) as agent2:
+             env.create_agent(mesh.short_meshid) as agent2,\
+             env.create_agent(mesh2.short_meshid) as agent3:
             # Test agent added to device group being propagated correctly
             # Create agent isn't so good at waiting for the agent to show in the sessions. Give it a couple seconds to appear.
             for i in range(3):
                 try:
                     r = await admin_session.list_devices(timeout=10)
                     print("\ninfo list_devices: {}\n".format(r))
-                    assert len(r) == 2, "Incorrect number of agents connected"
+                    assert len(r) == 3, "Incorrect number of agents connected"
                 except:
                     if i == 2:
                         raise
