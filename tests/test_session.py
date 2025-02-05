@@ -229,6 +229,9 @@ async def test_mesh_device(env):
             r = await admin_session.list_devices(meshid=mesh.meshid, timeout=10)
             print("\ninfo list_devices_meshid: {}\n".format(r))
 
+            r = await admin_session.device_info(agent.nodeid, timeout=10)
+            print("\ninfo admin_device_info: {}\n".format(r))
+
             # Test editing device info propagating correctly
             assert await admin_session.edit_device(agent.nodeid, name="new_name", description="New Description", tags="device", consent=meshctrl.constants.ConsentFlags.all, timeout=10), "Failed to edit device info"
 
@@ -271,7 +274,7 @@ async def test_mesh_device(env):
 
             # Test getting individual device info
             r = await unprivileged_session.device_info(agent.nodeid, timeout=10)
-            print("\ninfo device_info: {}\n".format(r))
+            print("\ninfo unprivileged_device_info: {}\n".format(r))
 
             # This device info includes the mesh ID of the device, even though the user doesn't have acces to that mesh. That's odd.
             # assert r.meshid is None, "Individual device is exposing its meshid"
