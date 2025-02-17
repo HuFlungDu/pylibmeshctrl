@@ -2,6 +2,11 @@
 Changelog
 =========
 
+version 1.1.2
+=============
+Bugs:
+	* Fixed semver for requirements. New version of websockets broke this library.
+
 Version 1.1.1
 =============
 Bugs:
