@@ -11,7 +11,6 @@ import ssl
 import functools
 import urllib
 import python_socks
-from python_socks.async_.asyncio import Proxy
 from . import exceptions
 
 def _encode_cookie(o, key):
@@ -164,17 +163,7 @@ def _process_websocket_exception(exc):
         return exc
     if isinstance(exc, python_socks._errors.ProxyError):
         return None
+    # Proxy errors show up like this now, and it's default to error out. Handle explicitly.
+    if isinstance(exc, websockets.exceptions.InvalidProxyMessage):
+        return None
     return tmp
-
-class proxy_connect(websockets.asyncio.client.connect):
-    def __init__(self,*args, proxy_url=None, **kwargs):
-        self.proxy = None
-        if proxy_url is not None:
-            self.proxy = Proxy.from_url(proxy_url)
-        super().__init__(*args, **kwargs)
-
-    async def create_connection(self, *args, **kwargs):
-        if self.proxy is not None:
-            parsed = urllib.parse.urlparse(self.uri)
-            self.connection_kwargs["sock"] = await self.proxy.connect(dest_host=parsed.hostname, dest_port=parsed.port)
-        return await super().create_connection(*args, **kwargs)

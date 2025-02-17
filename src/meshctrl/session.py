@@ -144,7 +144,7 @@ class Session(object):
 
 
             options["additional_headers"] = headers
-            async for websocket in util.proxy_connect(self.url, proxy_url=self._proxy, process_exception=util._process_websocket_exception, **options):
+            async for websocket in websockets.asyncio.client.connect(self.url, proxy=self._proxy, process_exception=util._process_websocket_exception, **options):
                 self.alive = True
                 self._socket_open.set()
                 try:
