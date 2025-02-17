@@ -2,6 +2,14 @@
 Changelog
 =========
 
+version 1.1.2
+=============
+Bugs:
+	* Fixed semver for requirements. New version of websockets broke this library.
+
+Security:
+	* Updated cryptogaphy to ~44.0.1 to fix ssl vulnerability.
+
 Version 1.1.1
 =============
 Bugs:
