@@ -67,7 +67,7 @@ class Tunnel(object):
             self.url = self._session.url.replace('/control.ashx', '/meshrelay.ashx?browser=1&p=' + str(self._protocol) + '&nodeid=' + self.node_id + '&id=' + self._tunnel_id + '&auth=' + self._authcookie["cookie"])
 
 
-            async for websocket in util.proxy_connect(self.url, proxy_url=self._session._proxy, process_exception=util._process_websocket_exception, **options):
+            async for websocket in websockets.asyncio.client.connect(self.url, proxy=self._session._proxy, process_exception=util._process_websocket_exception, **options):
                 self.alive = True
                 self._socket_open.set()
                 try:

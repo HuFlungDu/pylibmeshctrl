@@ -46,9 +46,11 @@ async def test_auto_reconnect(env):
         for i in range(3):
             try:
                 await admin_session.ping(timeout=10)
-            except:
-                continue
-            break
+            except* Exception as e:
+                print("".join(traceback.format_exception(e)))
+                pass
+            else:
+                break
         else:
             raise Exception("Failed to reconnect")
 
@@ -57,6 +59,7 @@ async def test_auto_reconnect(env):
             try:
                 await admin_session.ping(timeout=10)
             except* Exception as e:
+                print("".join(traceback.format_exception(e)))
                 pass
             else:
                 break
