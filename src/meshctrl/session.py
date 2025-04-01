@@ -482,6 +482,10 @@ class Session(object):
             for node in nodes:
                 if node["node"].get("meshid", None):
                     node["node"]["mesh"] = mesh.Mesh(node["node"].get("meshid"), self)
+                if "lastConnect" in node and isinstance(node["lastConnect"], dict):
+                    node["node"]["lastconnect"] = node["lastConnect"].get("time")
+                    node["node"]["lastaddr"] = node["lastConnect"].get("addr")
+                    del node["lastConnect"]
                 details = {}
                 for key, val in node.items():
                     if key != "node":
