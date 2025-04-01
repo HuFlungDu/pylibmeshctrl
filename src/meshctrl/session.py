@@ -1741,10 +1741,11 @@ class Session(object):
             tasks.append(tg.create_task(asyncio.wait_for(_(), timeout=timeout)))
             tasks.append({ "action": 'msg', "type": 'openUrl', "nodeid": nodeid, "url": url }, "device_open_url", timeout=timeout)
 
+        
+        success = tasks[0].result()
         res = tasks[1].result()
-        success = tasks[2].result()
 
-        if data.get("result", "ok").lower() != "ok":
+        if res.get("result", "ok").lower() != "ok":
             raise exceptions.ServerError(data["result"])
 
         if not success:
