@@ -59,7 +59,7 @@ class Device(object):
     def __init__(self, nodeid, session, agent=None,
                        name=None, desc=None, description=None,
                        tags=None, users=None,
-                       agct=None, created_at=None, 
+                       agct=None, created_at=None,
                        rname=None, computer_name=None, icon=constants.Icon.desktop,
                        mesh=None, mtype=None, meshtype=None, groupname=None, meshname=None,
                        domain=None, host=None, ip=None, conn=None, connected=None,
@@ -71,7 +71,7 @@ class Device(object):
         if links is None:
             links = {}
         self.links = links
-        if ("ver" in agent):
+        if agent and "ver" in agent:
             agent = {
                 "version": agent["ver"],
                 "id": agent["id"],
