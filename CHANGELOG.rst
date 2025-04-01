@@ -2,6 +2,17 @@
 Changelog
 =========
 
+version 1.2.0
+=============
+
+Bugs:
+	* Fixed agent sometimes being None causing an oxception
+	* Fixed bad code in device_open_url
+
+Features:
+	* Changed websockets version to 15. This now uses the proxy implemention from that library, instead of the previous hack.
+	* Added lastaddr and lastconnect to list_devices API
+
 version 1.1.2
 =============
 Bugs:
