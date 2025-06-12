@@ -478,7 +478,6 @@ class Session(object):
         if "result" in res0:
             raise exceptions.ServerError(res0["result"])
         if details:
-            nodes = json.loads(res0["data"])
             try:
                 raw_data = res0["data"]
                 if isinstance(raw_data, str):
