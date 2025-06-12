@@ -479,6 +479,16 @@ class Session(object):
             raise exceptions.ServerError(res0["result"])
         if details:
             nodes = json.loads(res0["data"])
+            try:
+                raw_data = res0["data"]
+                if isinstance(raw_data, str):
+                    nodes = json.loads(raw_data)
+                else:
+                    nodes = raw_data
+            except Exception as e:
+                print(f"Failed to parse device data: {e}")
+                return
+
             for node in nodes:
                 if node["node"].get("meshid", None):
                     node["node"]["mesh"] = mesh.Mesh(node["node"].get("meshid"), self)
