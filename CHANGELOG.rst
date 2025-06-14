@@ -2,6 +2,12 @@
 Changelog
 =========
 
+version 1.2.1
+=============
+
+Bugs:
+	* Fixed handling of meshcentral's list_devices return with details=True
+
 version 1.2.0
 =============
 
