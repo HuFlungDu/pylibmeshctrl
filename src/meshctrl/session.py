@@ -479,11 +479,13 @@ class Session(object):
             raise exceptions.ServerError(res0["result"])
         if details:
             try:
-                raw_data = res0["data"]
-                if isinstance(raw_data, str):
-                    nodes = json.loads(raw_data)
-                else:
-                    nodes = raw_data
+                nodes = res0["data"]
+                # Accept any number of nested strings, meshcentral is odd
+                while True:
+                    try:
+                        nodes = json.loads(nodes)
+                    except TypeError:
+                        break
             except Exception as e:
                 print(f"Failed to parse device data: {e}")
                 return
