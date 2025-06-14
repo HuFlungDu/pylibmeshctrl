@@ -478,17 +478,13 @@ class Session(object):
         if "result" in res0:
             raise exceptions.ServerError(res0["result"])
         if details:
-            try:
-                nodes = res0["data"]
-                # Accept any number of nested strings, meshcentral is odd
-                while True:
-                    try:
-                        nodes = json.loads(nodes)
-                    except TypeError:
-                        break
-            except Exception as e:
-                print(f"Failed to parse device data: {e}")
-                return
+            nodes = res0["data"]
+            # Accept any number of nested strings, meshcentral is odd
+            while True:
+                try:
+                    nodes = json.loads(nodes)
+                except TypeError:
+                    break
 
             for node in nodes:
                 if node["node"].get("meshid", None):
