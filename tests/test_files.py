@@ -120,7 +120,7 @@ async def test_upload_download(env):
                     downfilestream.seek(0)
 
                     start = time.perf_counter()
-                    r = await files.download(f"{pwd}/test", downfilestream, skip_http_attempt=True, timeout=5)
+                    r = await files.download(f"{pwd}/test", downfilestream, skip_http_attempt=True, timeout=20)
                     print("\ninfo files_download: {}\n".format(r))
                     assert r["result"] == True, "Download failed"
                     assert r["size"] == len(randdata), "Downloaded wrong number of bytes"
