@@ -113,7 +113,6 @@ class Session(object):
             self.user_agent_header = user_agent_header
         else:
             self.user_agent_header = default_user_agent_header
-        print(self.user_agent_header)
 
         self._eventer = util.Eventer()
 
