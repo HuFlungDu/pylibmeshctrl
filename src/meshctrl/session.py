@@ -10,6 +10,8 @@ import io
 import ssl
 import urllib
 from python_socks.async_.asyncio import Proxy
+from platform import python_version
+from . import __version__
 from . import constants
 from . import exceptions
 from . import util
@@ -45,7 +47,8 @@ class Session(object):
         closed (asyncio.Event): Event that occurs when the session closes permanently
     '''
 
-    def __init__(self, url, user=None, domain=None, password=None, loginkey=None, proxy=None, token=None, ignore_ssl=False, auto_reconnect=False):
+    def __init__(self, url, user=None, domain=None, password=None, loginkey=None, proxy=None, token=None, ignore_ssl=False, auto_reconnect=False, user_agent_header=None):
+        default_user_agent_header = f"Python/{python_version()} websockets/{websockets.__version__} pylibmeshctrl/{__version__}" 
         parsed = urllib.parse.urlparse(url)
 
         if parsed.scheme not in ("wss", "ws"):
@@ -106,6 +109,10 @@ class Session(object):
         self._file_tunnels = {}
         self._ignore_ssl = ignore_ssl
         self.auto_reconnect = auto_reconnect
+        if user_agent_header:
+            self.user_agent_header = user_agent_header
+        else:
+            self.user_agent_header = default_user_agent_header
 
         self._eventer = util.Eventer()
 
@@ -144,7 +151,7 @@ class Session(object):
 
 
             options["additional_headers"] = headers
-            async for websocket in websockets.asyncio.client.connect(self.url, proxy=self._proxy, process_exception=util._process_websocket_exception, max_size=None, **options):
+            async for websocket in websockets.asyncio.client.connect(self.url, proxy=self._proxy, process_exception=util._process_websocket_exception, max_size=None, user_agent_header=self.user_agent_header, **options):
                 self.alive = True
                 self._socket_open.set()
                 try:
