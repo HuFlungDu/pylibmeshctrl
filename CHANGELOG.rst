@@ -2,6 +2,16 @@
 Changelog
 =========
 
+version 1.2.2
+=============
+
+Improvements:
+	* Added user agent to websocket headers
+
+Bugs:
+	* Fixed library's __version__ implementation
+	* Fixed data from certain devices not showing up due to overloading websocket packet sizes
+
 version 1.2.1
 =============
 
