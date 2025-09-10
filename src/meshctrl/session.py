@@ -1062,6 +1062,27 @@ class Session(object):
             raise exceptions.ServerError(data["result"])
         return True
 
+    async def remove_device(self, nodeids, timeout=None):
+        '''
+        Remove device from MeshCentral
+
+        Args:
+            nodeids (str|list[str]): nodeid(s) of the device(s) that have to be removed
+            timeout (int): duration in seconds to wait for a response before throwing an error
+        
+        Returns:
+            bool: True on success, raise otherwise
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
+        if isinstance(nodeids, str):
+            nodeids = [nodeids]
+        
+        data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_device_from_server", timeout=timeout)
+        print(data)                    
 
     async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
         '''
