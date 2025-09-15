@@ -1080,7 +1080,7 @@ class Session(object):
          '''
         if isinstance(nodeids, str):
             nodeids = [nodeids]
-        
+
         data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_devices", timeout=timeout)
         
         if data.get("result", "ok").lower() != "ok":
