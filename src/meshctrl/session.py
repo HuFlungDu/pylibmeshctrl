@@ -1082,7 +1082,8 @@ class Session(object):
             nodeids = [nodeids]
         
         data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_device_from_server", timeout=timeout)
-        print(data)                    
+        
+        return data["result"] == "ok"
 
     async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
         '''
