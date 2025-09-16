@@ -314,7 +314,7 @@ class Device(object):
         if isinstance(nodeids, str):
             nodeids = [nodeids]
         
-        return self._session.remove_devices(self, nodeids, timeout)
+        return self._session.remove_devices(self.nodeid, timeout)
 
     async def sleep(self, timeout=None):
         '''
