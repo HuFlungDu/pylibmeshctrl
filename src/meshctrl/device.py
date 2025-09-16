@@ -295,7 +295,7 @@ class Device(object):
          '''
         return await self._session.reset_devices(self.nodeid, timeout=timeout)
 
-    async def remove(self, nodeids, timeout=None):
+    async def remove(self, timeout=None):
         '''
         Remove device from MeshCentral
 
