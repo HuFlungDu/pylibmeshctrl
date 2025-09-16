@@ -307,13 +307,9 @@ class Device(object):
             bool: True on success, raise otherwise
 
         Raises:
-            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
             :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
             asyncio.TimeoutError: Command timed out
          '''
-        if isinstance(nodeids, str):
-            nodeids = [nodeids]
-        
         return self._session.remove_devices(self.nodeid, timeout)
 
     async def sleep(self, timeout=None):

@@ -1064,7 +1064,7 @@ class Session(object):
 
     async def remove_devices(self, nodeids, timeout=None):
         '''
-        Remove device from MeshCentral
+        Remove device(s) from MeshCentral
 
         Args:
             nodeids (str|list[str]): nodeid(s) of the device(s) that have to be removed
