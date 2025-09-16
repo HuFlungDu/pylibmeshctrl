@@ -1062,7 +1062,7 @@ class Session(object):
             raise exceptions.ServerError(data["result"])
         return True
 
-    async def remove_device(self, nodeids, timeout=None):
+    async def remove_devices(self, nodeids, timeout=None):
         '''
         Remove device from MeshCentral
 

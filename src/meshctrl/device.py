@@ -295,6 +295,27 @@ class Device(object):
          '''
         return await self._session.reset_devices(self.nodeid, timeout=timeout)
 
+    async def remove(self, nodeids, timeout=None):
+        '''
+        Remove device from MeshCentral
+
+        Args:
+            nodeids (str|list[str]): nodeid(s) of the device(s) that have to be removed
+            timeout (int): duration in seconds to wait for a response before throwing an error
+        
+        Returns:
+            bool: True on success, raise otherwise
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
+        if isinstance(nodeids, str):
+            nodeids = [nodeids]
+        
+        return self._session.remove_devices(self, nodeids, timeout)
+
     async def sleep(self, timeout=None):
         '''
         Sleep device
