@@ -1473,7 +1473,7 @@ class Session(object):
                     return nid
 
         result = {n: {"complete": False, "result": [], "command": command} for n in nodeids}
-        async def _():
+        async def _console():
             async for event in self.events({"action": "msg", "type": "console"}):
                 node = match_nodeid(event["nodeid"], nodeids)
                 if node:
@@ -1485,34 +1485,55 @@ class Session(object):
                     elif (event["value"].startswith("Run commands")):
                         continue
                     result[node]["result"].append(event["value"])
-        async def __(command):
+
+        # We create this task AFTER getting the first message, but I don't feel like implementing this twice, so we'll pass in the first message and have it parsed immediately
+        async def _reply(responseid, start_data=None):
+            # Returns True when all results are in, Falsey otherwise
+            def _parse_event(event):
+                node = match_nodeid(event["nodeid"], nodeids)
+                if node:
+                    result.setdefault(node, {})["complete"] = True
+                    result[node]["result"].append(event["result"])
+                    if all(_["complete"] for key, _ in result.items()):
+                        return True
+
+            if start_data is not None:
+                if _parse_event(start_data):
+                    return
+            async for event in self.events({"action": "msg", "type": "runcommands", "responseid": responseid}):
+                if _parse_event(event):
+                    break
+
+        async def __(command, tg, tasks):
             data = await self._send_command(command, "run_command", timeout=timeout)
 
-            if data.get("result", "ok").lower() != "ok":
+            if data.get("type", None) != "runcommands" and data.get("result", "ok").lower() != "ok":
                 raise exceptions.ServerError(data["result"])
-        
-        expect_response = False
-        if not ignore_output:
-            userid = (await self.user_info())["_id"]
-            for n in nodeids:
-                device_info = await self.device_info(n, timeout=timeout)
-                try:
-                    permissions = device_info.mesh.links.get(userid, {}).get("rights",constants.DeviceRights.norights)\
-                    # This should work for device rights, but it only seems to work for mesh rights. Not sure why, but I can't get the events to show up when the user only has individual device rights
-                    # |device_info.get("links", {}).get(userid, {}).get("rights", constants.DeviceRights.norights)
-                    # If we don't have agentconsole rights, we won't be able te read the output, so fill in blanks on this node
-                    if not permissions&constants.DeviceRights.agentconsole:
-                        result[n]["complete"] = True
-                    else:
-                        expect_response = True
-                except AttributeError:
-                    result[n]["complete"] = True
+            elif data.get("type", None) != "runcommands" and data.get("result", "ok").lower() == "ok":
+                expect_response = False
+                if not ignore_output:
+                    userid = (await self.user_info())["_id"]
+                    for n in nodeids:
+                        device_info = await self.device_info(n, timeout=timeout)
+                        try:
+                            permissions = device_info.mesh.links.get(userid, {}).get("rights",constants.DeviceRights.norights)\
+                            # This should work for device rights, but it only seems to work for mesh rights. Not sure why, but I can't get the events to show up when the user only has individual device rights
+                            # |device_info.get("links", {}).get(userid, {}).get("rights", constants.DeviceRights.norights)
+                            # If we don't have agentconsole rights, we won't be able te read the output, so fill in blanks on this node
+                            if not permissions&constants.DeviceRights.agentconsole:
+                                result[n]["complete"] = True
+                            else:
+                                expect_response = True
+                        except AttributeError:
+                            result[n]["complete"] = True
+                if expect_response:
+                    tasks.append(tg.create_task(asyncio.wait_for(_console(), timeout=timeout)))
+            elif data.get("type", None) == "runcommands" and not ignore_output:
+                tasks.append(tg.create_task(asyncio.wait_for(_reply(data["responseid"], start_data=data), timeout=timeout)))
 
         tasks = []
         async with asyncio.TaskGroup() as tg:
-            if expect_response:
-                tasks.append(tg.create_task(asyncio.wait_for(_(), timeout=timeout)))
-            tasks.append(tg.create_task(__({ "action": 'runcommands', "nodeids": nodeids, "type": (2 if powershell else 0), "cmds": command, "runAsUser": runAsUser })))
+            tasks.append(tg.create_task(__({ "action": 'runcommands', "nodeids": nodeids, "type": (2 if powershell else 0), "cmds": command, "runAsUser": runAsUser, "reply": not ignore_output }, tg, tasks)))
 
         return {n: v | {"result": "".join(v["result"])} for n,v in result.items()}
 
