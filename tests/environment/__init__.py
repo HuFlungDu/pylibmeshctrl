@@ -37,7 +37,9 @@ class Agent(object):
         self._clienturl = clienturl
         self._dockerurl = dockerurl
         r = requests.post(f"{self._clienturl}/add-agent", json={"url": f"{self._dockerurl}", "meshid": self.meshid})
-        self.nodeid = r.json()["id"]
+        agent_json = r.json()
+        self.nodeid = agent_json["id"]
+        self.nodehex = agent_json["hex"]
 
     def __enter__(self):
         return self
