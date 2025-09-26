@@ -1506,7 +1506,6 @@ class Session(object):
 
         async def __(command, tg, tasks):
             data = await self._send_command(command, "run_command", timeout=timeout)
-
             if data.get("type", None) != "runcommands" and data.get("result", "ok").lower() != "ok":
                 raise exceptions.ServerError(data["result"])
             elif data.get("type", None) != "runcommands" and data.get("result", "ok").lower() == "ok":
@@ -1533,6 +1532,9 @@ class Session(object):
                     console_task.cancel()
             elif data.get("type", None) == "runcommands" and not ignore_output:
                 tasks.append(tg.create_task(asyncio.wait_for(_reply(data["responseid"], start_data=data), timeout=timeout)))
+                # Force this to run immediately? This might be odd; but we want to make sure we get don't lose the race condition with the srever.
+                # Not sure if this actually works but I haven't yet seen it fail. *shrug*
+                await asyncio.sleep(0)
 
         tasks = []
         async with asyncio.TaskGroup() as tg:
