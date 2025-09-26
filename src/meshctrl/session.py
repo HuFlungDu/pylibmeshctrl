@@ -184,7 +184,7 @@ class Session(object):
     async def _listen_data_task(self, websocket):
         async for message in websocket:
             await self._eventer.emit("raw", message)
-            # Meshcentral does pong wrong and breaks our parsing, so fix it here.
+            # Meshcentral does pong wrong and breaks our parsing, so fix it here. This is fixed now, but we want compatibility with old versions.
             if message == '{action:"pong"}':
                 message = '{"action":"pong"}'
 
@@ -1511,6 +1511,7 @@ class Session(object):
                 raise exceptions.ServerError(data["result"])
             elif data.get("type", None) != "runcommands" and data.get("result", "ok").lower() == "ok":
                 expect_response = False
+                console_task = tg.create_task(asyncio.wait_for(_console(), timeout=timeout))
                 if not ignore_output:
                     userid = (await self.user_info())["_id"]
                     for n in nodeids:
@@ -1527,13 +1528,15 @@ class Session(object):
                         except AttributeError:
                             result[n]["complete"] = True
                 if expect_response:
-                    tasks.append(tg.create_task(asyncio.wait_for(_console(), timeout=timeout)))
+                    tasks.append(console_task)
+                else:
+                    console_task.cancel()
             elif data.get("type", None) == "runcommands" and not ignore_output:
                 tasks.append(tg.create_task(asyncio.wait_for(_reply(data["responseid"], start_data=data), timeout=timeout)))
 
         tasks = []
         async with asyncio.TaskGroup() as tg:
-            tasks.append(tg.create_task(__({ "action": 'runcommands', "nodeids": nodeids, "type": (2 if powershell else 0), "cmds": command, "runAsUser": runAsUser, "reply": not ignore_output }, tg, tasks)))
+            tasks.append(tg.create_task(__({ "action": 'runcommands', "nodeids": nodeids, "type": (2 if powershell else 0), "cmds": command, "runAsUser": runAsUser, "reply": not ignore_output}, tg, tasks)))
 
         return {n: v | {"result": "".join(v["result"])} for n,v in result.items()}
 
