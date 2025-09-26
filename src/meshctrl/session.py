@@ -571,7 +571,7 @@ class Session(object):
             while True:
                 data = await event_queue.get()
                 if filter and not util.compare_dict(filter, data):
-                        continue
+                    continue
                 yield data
         finally:
             self._eventer.off("server_event", _)
@@ -1081,9 +1081,11 @@ class Session(object):
         if isinstance(nodeids, str):
             nodeids = [nodeids]
         
-        data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_device_from_server", timeout=timeout)
+        data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_devices", timeout=timeout)
         
-        return data["result"] == "ok"
+        if data.get("result", "ok").lower() != "ok":
+            raise exceptions.ServerError(data["result"])
+        return True
 
     async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
         '''
