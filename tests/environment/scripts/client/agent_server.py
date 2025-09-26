@@ -53,7 +53,7 @@ def add_agent():
         time.sleep(.1)
     else:
         raise Exception(f"Failed to start agent: {text}")
-    return {"id": agent_id, "hex": agent_hex}
+    return {"id": agent_id}
 
 @api.route('/remove-agent/<agentid>', methods=['POST'])
 def remove_agent(agentid):

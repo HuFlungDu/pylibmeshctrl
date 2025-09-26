@@ -1,4 +1,4 @@
-FROM python:3.13
+FROM python:3.12
 WORKDIR /usr/local/app
 
 # Install the application dependencies
