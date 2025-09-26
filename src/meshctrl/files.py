@@ -157,7 +157,7 @@ class Files(tunnel.Tunnel):
 
     async def rm(self, path, files, recursive=False, timeout=None):
         """
-        Create a directory on the device. This API doesn't error if the file doesn't exist.
+        Remove a set of files or directories from the device. This API doesn't error if the file doesn't exist.
 
         Args:
             path (str): Directory from which to delete files
