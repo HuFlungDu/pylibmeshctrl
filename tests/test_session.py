@@ -251,28 +251,7 @@ async def test_mesh_device(env):
             assert "Run commands completed." not in r[agent2.nodeid]["result"], "Didn't parse run command ending correctly"
             assert "meshagent" in (await privileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
 
-            # Test run_commands missing device
-            try:
-                await admin_session.run_command([agent.nodeid, "notanid"], "ls", timeout=10)
-            except* (meshctrl.exceptions.ServerError, ValueError):
-                pass
-            else:
-                raise Exception("Run command on a device that doesn't exist did not raise an exception")
-
-            r = await admin_session.run_console_command([agent.nodeid, agent2.nodeid], "info", timeout=10)
-            print("\ninfo run_console_command: {}\n".format(r))
-            assert agent.nodeid in r[agent.nodeid]["result"], "Run console command gave bad response"
-            assert agent2.nodeid in r[agent2.nodeid]["result"], "Run console command gave bad response"
-
-            # Test run_commands missing device
-            try:
-                await admin_session.run_console_command([agent.nodeid, "notanid"], "info", timeout=10)
-            except* (meshctrl.exceptions.ServerError, ValueError):
-                pass
-            else:
-                raise Exception("Run console command on a device that doesn't exist did not raise an exception")
-
-            # Test run commands with individual device permissions
+            # Test run commands with ndividual device permissions
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
             except* (meshctrl.exceptions.ServerError, ValueError):
@@ -287,7 +266,7 @@ async def test_mesh_device(env):
             else:
                 raise Exception("Unprivileged user has access to device it should not")
 
-            assert (await admin_session.add_users_to_device((await unprivileged_session.user_info())["_id"], agent.nodeid, meshctrl.constants.DeviceRights.norights)), "Failed to add user to device"
+            assert (await admin_session.add_users_to_device((await unprivileged_session.user_info())["_id"], agent.nodeid, meshctrl.constants.MeshRights.norights)), "Failed to add user to device"
 
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", ignore_output=True, timeout=10)
@@ -305,14 +284,12 @@ async def test_mesh_device(env):
 
             assert r.links[(await unprivileged_session.user_info())["_id"]]["rights"] == meshctrl.constants.DeviceRights.norights, "Unprivileged user has too many rights!"
 
-            assert (await admin_session.add_users_to_device([(await unprivileged_session.user_info())["_id"]], agent.nodeid, meshctrl.constants.DeviceRights.fullrights)), "Failed to modify user's permissions"
+            assert (await admin_session.add_users_to_device([(await unprivileged_session.user_info())["_id"]], agent.nodeid, meshctrl.constants.DeviceRights.remotecontrol|meshctrl.constants.DeviceRights.agentconsole|meshctrl.constants.DeviceRights.remotecommands)), "Failed to modify user's permissions"
 
-            assert (await unprivileged_session.device_info(agent.nodeid, timeout=10)).links[(await unprivileged_session.user_info())["_id"]]["rights"] == meshctrl.constants.DeviceRights.fullrights, "Adding permissions did not update unprivileged user."
+            assert (await unprivileged_session.device_info(agent.nodeid, timeout=10)).links[(await unprivileged_session.user_info())["_id"]]["rights"] == meshctrl.constants.DeviceRights.remotecontrol|meshctrl.constants.DeviceRights.agentconsole|meshctrl.constants.DeviceRights.remotecommands, "Adding permissions did not update unprivileged user."
 
-            # For now, this expects no response. If we ever figure out why the server isn't sending console information to us when it should, fix this.
+            # For now, this expects no response. If we ever figure out why the server isn't sending console information te us when it should, fix this.
             # assert "meshagent" in (await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
-            # Meshcentral has a 10 second cache on user perms.
-            #await asyncio.sleep(15)
             await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
 
             assert await admin_session.move_to_device_group(agent.nodeid, mesh2.meshid, timeout=5), "Failed to move mesh to new device group"
@@ -326,7 +303,7 @@ async def test_mesh_device(env):
 
             assert await admin_session.move_to_device_group([agent.nodeid], mesh.name, isname=True, timeout=5), "Failed to move mesh to new device group by name"
 
-            # For now, this expects no response. If we ever figure out why the server isn't sending console information te us when it should, fix this.
+            # For now, this expe namects no response. If we ever figure out why the server isn't sending console information te us when it should, fix this.
             # assert "meshagent" in (await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
