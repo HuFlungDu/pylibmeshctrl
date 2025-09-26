@@ -571,7 +571,7 @@ class Session(object):
             while True:
                 data = await event_queue.get()
                 if filter and not util.compare_dict(filter, data):
-                        continue
+                    continue
                 yield data
         finally:
             self._eventer.off("server_event", _)
@@ -1062,6 +1062,30 @@ class Session(object):
             raise exceptions.ServerError(data["result"])
         return True
 
+    async def remove_devices(self, nodeids, timeout=None):
+        '''
+        Remove device(s) from MeshCentral
+
+        Args:
+            nodeids (str|list[str]): nodeid(s) of the device(s) that have to be removed
+            timeout (int): duration in seconds to wait for a response before throwing an error
+        
+        Returns:
+            bool: True on success, raise otherwise
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
+        if isinstance(nodeids, str):
+            nodeids = [nodeids]
+
+        data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_devices", timeout=timeout)
+        
+        if data.get("result", "ok").lower() != "ok":
+            raise exceptions.ServerError(data["result"])
+        return True
 
     async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
         '''
