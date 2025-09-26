@@ -571,7 +571,7 @@ class Session(object):
             while True:
                 data = await event_queue.get()
                 if filter and not util.compare_dict(filter, data):
-                        continue
+                    continue
                 yield data
         finally:
             self._eventer.off("server_event", _)
@@ -1062,6 +1062,30 @@ class Session(object):
             raise exceptions.ServerError(data["result"])
         return True
 
+    async def remove_devices(self, nodeids, timeout=None):
+        '''
+        Remove device(s) from MeshCentral
+
+        Args:
+            nodeids (str|list[str]): nodeid(s) of the device(s) that have to be removed
+            timeout (int): duration in seconds to wait for a response before throwing an error
+        
+        Returns:
+            bool: True on success, raise otherwise
+
+        Raises:
+            :py:class:`~meshctrl.exceptions.ServerError`: Error text from server if there is a failure
+            :py:class:`~meshctrl.exceptions.SocketError`: Info about socket closure
+            asyncio.TimeoutError: Command timed out
+         '''
+        if isinstance(nodeids, str):
+            nodeids = [nodeids]
+
+        data = await self._send_command({ "action": 'removedevices', "nodeids": nodeids}, "remove_devices", timeout=timeout)
+        
+        if data.get("result", "ok").lower() != "ok":
+            raise exceptions.ServerError(data["result"])
+        return True
 
     async def add_device_group(self, name, description="", amtonly=False, features=0, consent=0, timeout=None):
         '''
@@ -1488,25 +1512,35 @@ class Session(object):
         async def __(command):
             data = await self._send_command(command, "run_command", timeout=timeout)
 
-            if data.get("result", "ok").lower() != "ok":
+            if data.get("type", None) != "runcommands" and data.get("result", "ok").lower() != "ok":
                 raise exceptions.ServerError(data["result"])
-        
-        expect_response = False
-        if not ignore_output:
-            userid = (await self.user_info())["_id"]
-            for n in nodeids:
-                device_info = await self.device_info(n, timeout=timeout)
-                try:
-                    permissions = device_info.mesh.links.get(userid, {}).get("rights",constants.DeviceRights.norights)\
-                    # This should work for device rights, but it only seems to work for mesh rights. Not sure why, but I can't get the events to show up when the user only has individual device rights
-                    # |device_info.get("links", {}).get(userid, {}).get("rights", constants.DeviceRights.norights)
-                    # If we don't have agentconsole rights, we won't be able te read the output, so fill in blanks on this node
-                    if not permissions&constants.DeviceRights.agentconsole:
-                        result[n]["complete"] = True
-                    else:
-                        expect_response = True
-                except AttributeError:
-                    result[n]["complete"] = True
+            elif data.get("type", None) != "runcommands" and data.get("result", "ok").lower() == "ok":
+                expect_response = False
+                console_task = tg.create_task(asyncio.wait_for(_console(), timeout=timeout))
+                if not ignore_output:
+                    userid = (await self.user_info())["_id"]
+                    for n in nodeids:
+                        device_info = await self.device_info(n, timeout=timeout)
+                        try:
+                            permissions = device_info.mesh.links.get(userid, {}).get("rights",constants.DeviceRights.norights)\
+                            # This should work for device rights, but it only seems to work for mesh rights. Not sure why, but I can't get the events to show up when the user only has individual device rights
+                            # |device_info.get("links", {}).get(userid, {}).get("rights", constants.DeviceRights.norights)
+                            # If we don't have agentconsole rights, we won't be able te read the output, so fill in blanks on this node
+                            if not permissions&constants.DeviceRights.agentconsole:
+                                result[n]["complete"] = True
+                            else:
+                                expect_response = True
+                        except AttributeError:
+                            result[n]["complete"] = True
+                if expect_response:
+                    tasks.append(console_task)
+                else:
+                    console_task.cancel()
+            elif data.get("type", None) == "runcommands" and not ignore_output:
+                tasks.append(tg.create_task(asyncio.wait_for(_reply(data["responseid"], start_data=data), timeout=timeout)))
+                # Force this to run immediately? This might be odd; but we want to make sure we get don't lose the race condition with the srever.
+                # Not sure if this actually works but I haven't yet seen it fail. *shrug*
+                await asyncio.sleep(0)
 
         tasks = []
         async with asyncio.TaskGroup() as tg:

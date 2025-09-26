@@ -313,6 +313,15 @@ async def test_mesh_device(env):
             r = await admin_session.remove_users_from_device_group((await privileged_session.user_info())["_id"], mesh.meshid, timeout=10)
             print("\ninfo remove_users_from_device_group: {}\n".format(r))
             assert (r[(await privileged_session.user_info())["_id"]]["success"]), "Failed to remove user from device group"
+
+            await admin_session.remove_devices(agent2.nodeid, timeout=10)
+            try:
+                await admin_session.device_info(agent2.nodeid, timeout=10)
+            except ValueError:
+                pass
+            else:
+                raise Exception("Device not deleted")
+
             assert (await admin_session.remove_users_from_device(agent.nodeid, (await unprivileged_session.user_info())["_id"], timeout=10)), "Failed to remove user from device"
             
 

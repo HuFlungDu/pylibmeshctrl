@@ -2,6 +2,17 @@
 Changelog
 =========
 
+version 1.3.0
+=============
+
+Improvements:
+	* Improved how run_commands was handled (#51)
+	* Added remove device functionality (#52)
+	* Added run_console_commands functionality (#55)
+
+Bugs:
+	* Silly documentation being wrong (#53)
+
 version 1.2.2
 =============
 
