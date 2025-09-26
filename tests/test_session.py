@@ -251,6 +251,14 @@ async def test_mesh_device(env):
             assert "Run commands completed." not in r[agent2.nodeid]["result"], "Didn't parse run command ending correctly"
             assert "meshagent" in (await privileged_session.run_command(agent.nodeid, "ls", timeout=10))[agent.nodeid]["result"], "ls gave incorrect data"
 
+            # Test run_commands missing device
+            try:
+                await admin_session.run_command([agent.nodeid, "notanid"], "ls", timeout=10)
+            except* (meshctrl.exceptions.ServerError, ValueError):
+                pass
+            else:
+                raise Exception("Run command on a device that doesn't exist did not raise an exception")
+
             # Test run commands with individual device permissions
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
