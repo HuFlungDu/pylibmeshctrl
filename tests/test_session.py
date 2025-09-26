@@ -259,6 +259,19 @@ async def test_mesh_device(env):
             else:
                 raise Exception("Run command on a device that doesn't exist did not raise an exception")
 
+            r = await admin_session.run_console_command([agent.nodeid, agent2.nodeid], "info", timeout=10)
+            print("\ninfo run_console_command: {}\n".format(r))
+            assert agent.nodeid in r[agent.nodeid]["result"], "Run console command gave bad response"
+            assert agent2.nodeid in r[agent2.nodeid]["result"], "Run console command gave bad response"
+
+            # Test run_commands missing device
+            try:
+                await admin_session.run_console_command([agent.nodeid, "notanid"], "info", timeout=10)
+            except* (meshctrl.exceptions.ServerError, ValueError):
+                pass
+            else:
+                raise Exception("Run console command on a device that doesn't exist did not raise an exception")
+
             # Test run commands with individual device permissions
             try:
                 await unprivileged_session.run_command(agent.nodeid, "ls", timeout=10)
