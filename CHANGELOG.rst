@@ -2,6 +2,12 @@
 Changelog
 =========
 
+version 1.3.1
+=============
+
+Improvments:
+	* Basically just everything in 1.3.0, this is a release fix
+
 version 1.3.0
 =============
 
