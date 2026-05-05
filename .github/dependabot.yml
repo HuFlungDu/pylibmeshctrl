@@ -7,12 +7,12 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
-    target-branch: "development"
+    target-branch: "main"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/tests/environment"
-    target-branch: "development"
+    target-branch: "main"
     schedule:
       interval: "weekly"
